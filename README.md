@@ -27,6 +27,19 @@ O primeiro ambiente operacional do projeto é o `Laboratório Virtual`, onde cas
 - Instalar hooks:
   - `./scripts/dev/install-git-hooks.sh`
 
+## CLI Inicial
+- Rodar a demonstração do Laboratório Virtual:
+  - `./build/cre`
+  - ou `./build/cre demo`
+- Registrar uma rodada inicial em artefatos Markdown:
+  - `./build/cre record-round ./output/lv-round-001`
+
+Esse comando gera arquivos versionáveis de:
+- caso
+- hipótese
+- experimento
+- evidência
+
 ## Estrutura
 - `src/`: implementação
 - `include/`: headers públicos
