@@ -16,6 +16,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <deque>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -109,6 +110,10 @@ std::string stripMarkdownCode(const std::string& value) {
         return value.substr(1, value.size() - 2);
     }
     return value;
+}
+
+const char* safeLabelOrFallback(const std::string& value, const char* fallback) {
+    return value.empty() ? fallback : value.c_str();
 }
 
 std::string readTextFile(const fs::path& path) {
@@ -406,9 +411,10 @@ void renderExperimentosTab(const Experiment& experiment) {
 void renderEvidenciasTab(const Experiment& experiment) {
     ImGui::Text("Evidencias");
     ImGui::Separator();
-    for (const auto& evidence : experiment.evidences()) {
-        ImGui::PushID(evidence.id.c_str());
-        ImGui::Text("%s", evidence.id.c_str());
+    for (std::size_t i = 0; i < experiment.evidences().size(); ++i) {
+        const auto& evidence = experiment.evidences()[i];
+        ImGui::PushID(static_cast<int>(i));
+        ImGui::Text("%s", safeLabelOrFallback(evidence.id, "<evidencia>"));
         ImGui::TextDisabled("Fonte: %s | Confianca: %.2f", evidence.source.c_str(), evidence.confidence);
         ImGui::TextWrapped("%s", evidence.observation.c_str());
         ImGui::Separator();
@@ -483,9 +489,10 @@ void renderExperimentosTab(const ArtifactRoundData& data) {
 void renderEvidenciasTab(const ArtifactRoundData& data) {
     ImGui::Text("Evidencias carregadas");
     ImGui::Separator();
-    for (const auto& evidence : data.evidences) {
-        ImGui::PushID(evidence.id.c_str());
-        ImGui::Text("%s", evidence.id.c_str());
+    for (std::size_t i = 0; i < data.evidences.size(); ++i) {
+        const auto& evidence = data.evidences[i];
+        ImGui::PushID(static_cast<int>(i));
+        ImGui::Text("%s", safeLabelOrFallback(evidence.id, "<evidencia>"));
         ImGui::TextDisabled("Fonte: %s | Confianca: %s", evidence.source.c_str(), evidence.confidence.c_str());
         ImGui::TextWrapped("%s", evidence.observation.c_str());
         ImGui::Separator();
@@ -512,9 +519,11 @@ void renderDocumentsTab(const std::vector<ProjectDocument>& documents, int& sele
     ImGui::BeginChild("docs_list", ImVec2(240.f, 0.f), true);
     for (int i = 0; i < static_cast<int>(documents.size()); ++i) {
         const bool isSelected = selectedDocument == i;
-        if (ImGui::Selectable(documents[i].label.c_str(), isSelected)) {
+        ImGui::PushID(i);
+        if (ImGui::Selectable(safeLabelOrFallback(documents[i].label, "<documento>"), isSelected)) {
             selectedDocument = i;
         }
+        ImGui::PopID();
     }
     ImGui::EndChild();
 
@@ -601,7 +610,15 @@ int runGuiApp() {
     std::array<char, 1024> workspaceInput{};
     DraftEditorState draftEditor{};
     std::string statusMessage = "Workspace pronto.";
+    float footerHeight = 120.0f;
+    std::deque<std::string> eventLog;
     copyStringToBuffer(workspace.workspaceRoot.string(), workspaceInput.data(), workspaceInput.size());
+
+    const auto pushEvent = [&](std::string event) {
+        if (event.empty()) return;
+        eventLog.push_front(std::move(event));
+        while (eventLog.size() > 8) eventLog.pop_back();
+    };
 
     const auto selectedScenarioLabel = [&]() -> std::string {
         for (const auto& scenario : scenarios) {
@@ -643,9 +660,11 @@ int runGuiApp() {
         statusMessage = "Workspace ativo: " + workspace.workspaceRoot.string() + " | rodada: " + currentRoundId
                       + " | cenario: " + currentScenarioId;
         resetDraftForCurrentScenario();
+        pushEvent("Workspace recarregado: " + workspace.workspaceRoot.string() + " | rodada " + currentRoundId);
     };
 
     resetDraftForCurrentScenario();
+    pushEvent("GUI inicializada no workspace " + workspace.workspaceRoot.string());
 
     bool running = true;
     while (running) {
@@ -729,6 +748,7 @@ int runGuiApp() {
                 const std::string selectedPath = trimCopy(workspaceInput.data());
                 if (selectedPath.empty()) {
                     statusMessage = "Informe um diretorio valido para o workspace.";
+                    pushEvent(statusMessage);
                 } else {
                     explicitWorkspaceRoot = fs::path(selectedPath);
                     reloadWorkspace();
@@ -779,6 +799,7 @@ int runGuiApp() {
                 const std::string hypothesisStatement = trimCopy(draftEditor.hypothesisStatement.data());
                 if (roundId.empty() || caseId.empty() || caseTitle.empty() || hypothesisStatement.empty()) {
                     statusMessage = "Round ID, Case ID, Case title e Hypothesis sao obrigatorios.";
+                    pushEvent(statusMessage);
                 } else {
                     ReframingDraft draft;
                     draft.roundId = roundId;
@@ -812,9 +833,11 @@ int runGuiApp() {
                         artifactData = loadArtifactRoundData(candidateRoundDirectories(workspace));
                         roundIds = listWorkspaceRoundIds(workspace);
                         statusMessage = "Draft criado para a rodada " + currentRoundId;
+                        pushEvent("Draft criado: " + currentRoundId + " | caso " + draft.caseId);
                         ImGui::CloseCurrentPopup();
                     } catch (const std::exception& ex) {
                         statusMessage = std::string("Falha ao salvar draft: ") + ex.what();
+                        pushEvent(statusMessage);
                     }
                 }
             }
@@ -854,40 +877,50 @@ int runGuiApp() {
         }
         ImGui::SameLine();
         ImGui::SetNextItemWidth(190.f);
-        if (ImGui::BeginCombo("Cenario", selectedScenarioLabel().c_str())) {
-            for (const auto& scenario : scenarios) {
+        const std::string scenarioPreview = selectedScenarioLabel();
+        if (ImGui::BeginCombo("Cenario", safeLabelOrFallback(scenarioPreview, "<cenario>"))) {
+            for (std::size_t i = 0; i < scenarios.size(); ++i) {
+                const auto& scenario = scenarios[i];
                 const bool selected = (scenario.id == currentScenarioId);
-                if (ImGui::Selectable(scenario.label.c_str(), selected)) {
+                ImGui::PushID(static_cast<int>(i));
+                if (ImGui::Selectable(safeLabelOrFallback(scenario.label, "<cenario>"), selected)) {
                     currentScenarioId = scenario.id;
                     reloadScenario();
                     statusMessage = "Cenario ativo: " + scenario.label;
+                    pushEvent(statusMessage);
                 }
+                ImGui::PopID();
                 if (selected) ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
         }
         ImGui::SameLine();
         ImGui::SetNextItemWidth(180.f);
-        if (ImGui::BeginCombo("Rodada", currentRoundId.c_str())) {
-            for (const auto& roundId : roundIds) {
+        if (ImGui::BeginCombo("Rodada (historico)", safeLabelOrFallback(currentRoundId, "<rodada>"))) {
+            for (std::size_t i = 0; i < roundIds.size(); ++i) {
+                const auto& roundId = roundIds[i];
                 const bool selected = (roundId == currentRoundId);
-                if (ImGui::Selectable(roundId.c_str(), selected)) {
+                ImGui::PushID(static_cast<int>(i));
+                if (ImGui::Selectable(safeLabelOrFallback(roundId, "<rodada-sem-id>"), selected)) {
                     currentRoundId = roundId;
                     reloadWorkspace();
+                    pushEvent("Rodada selecionada: " + currentRoundId);
                 }
+                ImGui::PopID();
                 if (selected) ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
         }
         ImGui::SameLine();
-        ImGui::TextDisabled("Workspace: %s", workspace.workspaceRoot.string().c_str());
-        ImGui::SameLine();
-        ImGui::TextDisabled("| %s", statusMessage.c_str());
-        if (!selectedScenarioDescription().empty()) {
-            ImGui::TextDisabled("Cenario: %s", selectedScenarioDescription().c_str());
-        }
+        ImGui::TextDisabled("Rodada = execucao/versionamento especifico do reframing.");
         ImGui::Separator();
 
+        ImVec2 available = ImGui::GetContentRegionAvail();
+        footerHeight = std::clamp(footerHeight, 72.0f, std::max(72.0f, available.y - 120.0f));
+        const float splitterHeight = 8.0f;
+        const float contentHeight = std::max(120.0f, available.y - footerHeight - splitterHeight);
+
+        ImGui::BeginChild("lv_content", ImVec2(0.f, contentHeight), false);
         if (ImGui::BeginTabBar("LVTabs")) {
             if (ImGui::BeginTabItem("Rodada")) {
                 if (artifactData.has_value()) renderRodadaTab(*artifactData);
@@ -936,18 +969,58 @@ int runGuiApp() {
                 roundIds = listWorkspaceRoundIds(workspace);
                 artifactData = loadArtifactRoundData(candidateRoundDirectories(workspace));
                 statusMessage = "Rodada registrada para o cenario: " + selectedScenarioLabel();
+                pushEvent(statusMessage + " | " + currentRoundId);
             } catch (const std::exception& ex) {
                 std::fprintf(stderr, "recordVirtualLabRound failed: %s\n", ex.what());
+                pushEvent(std::string("Falha ao registrar rodada: ") + ex.what());
             }
         }
         ImGui::SameLine();
         if (ImGui::Button("Recarregar Artefatos")) {
             artifactData = loadArtifactRoundData(candidateRoundDirectories(workspace));
+            pushEvent("Artefatos recarregados para " + currentRoundId);
         }
         ImGui::SameLine();
         ImGui::TextDisabled("%s",
                             artifactData.has_value() ? workspace.activeRoundRoot.string().c_str()
                                                      : "Sem artefatos locais: exibindo rodada demo em memoria");
+        ImGui::EndChild();
+
+        ImGui::InvisibleButton("footer_splitter", ImVec2(-1.f, splitterHeight));
+        if (ImGui::IsItemActive()) {
+            footerHeight -= ImGui::GetIO().MouseDelta.y;
+            footerHeight = std::clamp(footerHeight, 72.0f, std::max(72.0f, available.y - 120.0f));
+        }
+        if (ImGui::IsItemHovered() || ImGui::IsItemActive()) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+        }
+
+        ImGui::BeginChild("lv_footer_status", ImVec2(0.f, footerHeight), true);
+        ImGui::Text("Status e Log");
+        ImGui::Separator();
+        ImGui::TextDisabled("Rodada = execucao/versionamento especifico do reframing.");
+        ImGui::BulletText("Workspace ativo: %s", workspace.workspaceRoot.string().c_str());
+        ImGui::BulletText("Rodada selecionada: %s", safeLabelOrFallback(currentRoundId, "<rodada>"));
+        ImGui::BulletText("Cenario ativo: %s", safeLabelOrFallback(scenarioPreview, "<cenario>"));
+        if (!selectedScenarioDescription().empty()) {
+            ImGui::TextWrapped("Descricao do cenario: %s", selectedScenarioDescription().c_str());
+        }
+        ImGui::TextWrapped("Status: %s", statusMessage.c_str());
+        ImGui::Separator();
+        ImGui::TextWrapped("Fonte/artefatos: %s",
+                           artifactData.has_value() ? workspace.activeRoundRoot.string().c_str()
+                                                    : "Sem artefatos locais: exibindo rodada demo em memoria");
+        ImGui::Spacing();
+        ImGui::Text("Eventos recentes");
+        ImGui::Separator();
+        if (eventLog.empty()) {
+            ImGui::TextDisabled("Nenhum evento registrado.");
+        } else {
+            for (const auto& event : eventLog) {
+                ImGui::BulletText("%s", event.c_str());
+            }
+        }
+        ImGui::EndChild();
 
         ImGui::End();
 
