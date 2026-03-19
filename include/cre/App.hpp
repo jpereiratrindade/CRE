@@ -72,6 +72,7 @@ struct RoundArtifacts {
 };
 
 [[nodiscard]] std::string buildLabStatusMessage();
+[[nodiscard]] Experiment createVirtualLabCycleDemo();
 [[nodiscard]] VirtualLabReport runVirtualLabCycleDemo();
 [[nodiscard]] std::string renderExperimentReport(const VirtualLabReport& report);
 [[nodiscard]] RoundArtifacts recordVirtualLabRound(const std::filesystem::path& outputDir);

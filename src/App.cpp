@@ -160,8 +160,12 @@ std::string buildLabStatusMessage() {
     return "CRE Laboratorio Virtual pronto";
 }
 
+Experiment createVirtualLabCycleDemo() {
+    return buildVirtualLabExperiment();
+}
+
 VirtualLabReport runVirtualLabCycleDemo() {
-    const Experiment experiment = buildVirtualLabExperiment();
+    const Experiment experiment = createVirtualLabCycleDemo();
 
     VirtualLabReport report;
     report.caseId = experiment.labCase().id;
@@ -187,7 +191,7 @@ std::string renderExperimentReport(const VirtualLabReport& report) {
 }
 
 RoundArtifacts recordVirtualLabRound(const fs::path& outputDir) {
-    const Experiment experiment = buildVirtualLabExperiment();
+    const Experiment experiment = createVirtualLabCycleDemo();
     const VirtualLabReport report = runVirtualLabCycleDemo();
 
     std::error_code ec;

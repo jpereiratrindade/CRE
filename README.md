@@ -31,6 +31,8 @@ O primeiro ambiente operacional do projeto é o `Laboratório Virtual`, onde cas
 - Rodar a demonstração do Laboratório Virtual:
   - `./build/cre`
   - ou `./build/cre demo`
+- Abrir o shell inicial em SDL2 + Dear ImGui:
+  - `./build/cre gui`
 - Registrar uma rodada inicial em artefatos Markdown:
   - `./build/cre record-round ./output/lv-round-001`
 

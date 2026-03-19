@@ -12,7 +12,7 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++ python3 clang-format clang-tidy
+          sudo apt-get install -y cmake ninja-build g++ python3 clang-format clang-tidy libsdl2-dev libgl1-mesa-dev
       - name: Configure
         run: >
           cmake -S . -B build

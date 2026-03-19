@@ -3,6 +3,7 @@
 #include <string_view>
 
 #include "cre/App.hpp"
+#include "cre/GuiApp.hpp"
 
 namespace {
 
@@ -34,12 +35,13 @@ int main(int argc, char** argv) {
 
         const std::string_view command = argv[1];
         if (command == "demo") return runDemo();
+        if (command == "gui") return cre::runGuiApp();
         if (command == "record-round") {
             return runRecordRound(argc >= 3 ? std::string_view(argv[2]) : std::string_view{});
         }
 
         std::cerr << "Unknown command: " << command << "\n";
-        std::cerr << "Usage: cre [demo|record-round <output-dir>]\n";
+        std::cerr << "Usage: cre [demo|gui|record-round <output-dir>]\n";
         return 1;
     } catch (const std::exception& ex) {
         std::cerr << "CRE error: " << ex.what() << "\n";
