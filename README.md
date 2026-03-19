@@ -2,15 +2,15 @@
 
 Context Reframing Engine.
 
-O `CRE` e o motor de redefinicao de contexto para estudar, modelar e validar estrategias de reframing diante de rejeicao automatica ou preconceitos de percepcao.
+O `CRE` é o motor de redefinição de contexto para estudar, modelar e validar estratégias de reframing diante de rejeição automática ou preconceitos de percepção.
 
-O primeiro ambiente operacional do projeto e o `Laboratorio Virtual`, onde casos sao simulados, testados e evidenciados com governanca explicita.
+O primeiro ambiente operacional do projeto é o `Laboratório Virtual`, onde casos são simulados, testados e evidenciados com governança explícita.
 
-## Fundacao Conceitual
-- O ADR fundador esta em `adr/ADR-AGENT-005-cre-foundation-virtual-lab.md`
-- O nucleo do motor esta descrito em `ddd/ContextReframingEngine.md`
-- O primeiro ambiente operacional esta descrito em `ddd/LaboratorioVirtual.md`
-- Os limites eticos iniciais estao em `policies/ethics_limits.md`
+## Fundação Conceitual
+- O ADR fundador está em `adr/ADR-AGENT-005-cre-foundation-virtual-lab.md`
+- O núcleo do motor está descrito em `ddd/ContextReframingEngine.md`
+- O primeiro ambiente operacional está descrito em `ddd/LaboratorioVirtual.md`
+- Os limites éticos iniciais estão em `policies/ethics_limits.md`
 
 ## Bootstrap
 - Configurar build:
@@ -32,7 +32,7 @@ O primeiro ambiente operacional do projeto e o `Laboratorio Virtual`, onde casos
 - `include/`: headers públicos
 - `tests/`: testes automatizados
 - `adr/`: decisões arquiteturais
-- `ddd/`: modelagem de dominio do CRE e do Laboratorio Virtual
+- `ddd/`: modelagem de domínio do CRE e do Laboratório Virtual
 - `policies/`: regras operacionais
 - `mcp/`: contratos executáveis para ferramentas/agentes
 - `prompts/`: contexto estruturado
@@ -40,29 +40,29 @@ O primeiro ambiente operacional do projeto e o `Laboratorio Virtual`, onde casos
 - `.github/workflows/`: CI
 
 ## Conceitos centrais
-- `RejeicaoAutomatica`: filtro mental ou heuristica que bloqueia a percepcao inicial
+- `RejeicaoAutomatica`: filtro mental ou heurística que bloqueia a percepção inicial
 - `Gatilho`: elemento que ativa a rejeicao
-- `Contexto`: moldura de apresentacao e sequenciamento
+- `Contexto`: moldura de apresentação e sequenciamento
 - `Experiencia`: contato real com o valor entregue
-- `Reforco`: consolidacao posterior da nova percepcao
+- `Reforco`: consolidação posterior da nova percepção
 
 ## Ambientes
 - `CRE`: motor conceitual e operacional
-- `Laboratorio Virtual`: ambiente de simulacao, teste e validacao de reframing contextual
+- `Laboratório Virtual`: ambiente de simulação, teste e validação de reframing contextual
 
 ## Pipeline Inicial
-1. Mapear a rejeicao automatica
-2. Identificar o gatilho de ativacao
+1. Mapear a rejeição automática
+2. Identificar o gatilho de ativação
 3. Redesenhar o contexto de entrada
 4. Garantir entrega real
 5. Criar oportunidade de teste
-6. Registrar evidencia e reforco posterior
+6. Registrar evidência e reforço posterior
 
-## Principios
-- Reframing nao substitui substancia
-- Explicacao excessiva nao e estrategia
-- O laboratorio existe para evidenciar, nao para maquiar
-- Toda conclusao relevante precisa de hipotese, experimento e evidencia
+## Princípios
+- Reframing não substitui substância
+- Explicação excessiva não é estratégia
+- O laboratório existe para evidenciar, não para maquiar
+- Toda conclusão relevante precisa de hipótese, experimento e evidência
 
-## Proximo Passo Natural
-- transformar o Laboratorio Virtual em um modulo mais operacional com casos, hipoteses, experimentos e evidencias versionadas
+## Próximo Passo Natural
+- transformar o Laboratório Virtual em um módulo mais operacional com casos, hipóteses, experimentos e evidências versionadas
