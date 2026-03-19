@@ -41,10 +41,17 @@ struct ArtifactRoundData {
     std::string automaticRejection;
     std::string trigger;
     std::string hypothesisStatement;
+    std::string reframingTitle;
+    std::string reframingStrategy;
+    std::string expectedPerceptionShift;
+    std::string latentRejection;
+    std::string activationTrigger;
+    std::string exposureDesign;
     std::string expectedImprovementPct;
     std::string evidenceCount;
     std::string averageConfidence;
     std::string hypothesisSupported;
+    std::string decision;
     std::string summary;
     std::vector<ArtifactEvidenceEntry> evidences;
     std::string caseMarkdown;
@@ -145,6 +152,14 @@ std::vector<ProjectDocument> loadProjectDocuments(const fs::path& projectRoot) {
     return documents;
 }
 
+std::vector<std::string> listWorkspaceRoundIds(const WorkspaceLayout& workspace) {
+    std::vector<std::string> roundIds;
+    for (const auto& roundDir : listWorkspaceRounds(workspace)) {
+        roundIds.push_back(roundDir.filename().string());
+    }
+    return roundIds;
+}
+
 std::string extractBulletValue(const std::string& markdown, const std::string& key) {
     std::istringstream lines(markdown);
     const std::string needle = "- " + key + ":";
@@ -209,10 +224,17 @@ std::optional<ArtifactRoundData> loadArtifactRoundData(const fs::path& rootDir) 
     data.automaticRejection = extractBulletValue(data.caseMarkdown, "automatic_rejection");
     data.trigger = extractBulletValue(data.caseMarkdown, "trigger");
     data.hypothesisStatement = extractBulletValue(data.hypothesisMarkdown, "statement");
+    data.reframingTitle = extractBulletValue(data.hypothesisMarkdown, "reframing_title");
+    data.reframingStrategy = extractBulletValue(data.hypothesisMarkdown, "reframing_strategy");
+    data.expectedPerceptionShift = extractBulletValue(data.hypothesisMarkdown, "expected_perception_shift");
     data.expectedImprovementPct = extractBulletValue(data.hypothesisMarkdown, "expected_improvement_pct");
+    data.latentRejection = extractBulletValue(data.experimentMarkdown, "latent_rejection");
+    data.activationTrigger = extractBulletValue(data.experimentMarkdown, "activation_trigger");
+    data.exposureDesign = extractBulletValue(data.experimentMarkdown, "exposure_design");
     data.evidenceCount = extractBulletValue(data.experimentMarkdown, "evidence_count");
     data.averageConfidence = extractBulletValue(data.experimentMarkdown, "average_confidence");
     data.hypothesisSupported = extractBulletValue(data.experimentMarkdown, "hypothesis_supported");
+    data.decision = extractBulletValue(data.experimentMarkdown, "decision");
     data.summary = extractBulletValue(data.experimentMarkdown, "summary");
     data.evidences = parseEvidenceEntries(data.evidenceMarkdown);
     return data;
@@ -229,6 +251,7 @@ void renderTopBar(const LabCase& labCase, const Hypothesis& hypothesis, const Ex
     ImGui::Text("Rodada ativa | Caso: %s | Evidencias: %d", labCase.id.c_str(),
                 static_cast<int>(experiment.evidences().size()));
     ImGui::TextDisabled("Hipotese: %s", hypothesis.statement().c_str());
+    ImGui::TextDisabled("Reframing: %s", experiment.reframing().entryShift.c_str());
     ImGui::Separator();
 }
 
@@ -261,6 +284,8 @@ void renderCasosTab(const Experiment& experiment) {
     ImGui::TextWrapped("Contexto: %s", labCase.context.c_str());
     ImGui::TextWrapped("Rejeicao automatica: %s", labCase.automaticRejection.c_str());
     ImGui::TextWrapped("Gatilho: %s", labCase.trigger.c_str());
+    ImGui::TextWrapped("Heuristica latente: %s", experiment.rejection().heuristic.c_str());
+    ImGui::TextWrapped("Frase observada: %s", experiment.rejection().observedPhrase.c_str());
 }
 
 void renderHipotesesTab(const Experiment& experiment) {
@@ -270,14 +295,25 @@ void renderHipotesesTab(const Experiment& experiment) {
     ImGui::TextWrapped("%s", hypothesis.statement().c_str());
     ImGui::BulletText("Melhoria esperada: %.2f%%", hypothesis.expectedImprovementPct());
     ImGui::BulletText("Testavel: %s", hypothesis.isTestable() ? "sim" : "nao");
+    ImGui::Separator();
+    ImGui::Text("Reframing");
+    ImGui::TextWrapped("Titulo: %s", experiment.reframing().title.c_str());
+    ImGui::TextWrapped("Estrategia: %s", experiment.reframing().entryShift.c_str());
+    ImGui::TextWrapped("Mudanca esperada: %s", experiment.reframing().expectedPerceptionShift.c_str());
 }
 
 void renderExperimentosTab(const Experiment& experiment) {
     ImGui::Text("Experimento atual");
     ImGui::Separator();
     ImGui::BulletText("Estado: %s", experiment.wasExecuted() ? "executado" : "nao executado");
-    ImGui::BulletText("Guardrail principal: nao promover reframing sem entrega real");
+    ImGui::BulletText("Exposicao: %s", experiment.exposure().design.c_str());
+    ImGui::BulletText("Guardrail principal: %s", experiment.exposure().guardrail.c_str());
     ImGui::BulletText("Criterio de corroboracao: confianca media >= 0.70");
+    ImGui::Spacing();
+    ImGui::Text("Passos");
+    for (const auto& step : experiment.exposure().steps) {
+        ImGui::BulletText("%s", step.c_str());
+    }
 }
 
 void renderEvidenciasTab(const Experiment& experiment) {
@@ -309,6 +345,7 @@ void renderRodadaTab(const ArtifactRoundData& data) {
     ImGui::BulletText("Evidencias registradas: %s", data.evidenceCount.c_str());
     ImGui::BulletText("Confianca media: %s", data.averageConfidence.c_str());
     ImGui::BulletText("Hipotese corroborada: %s", data.hypothesisSupported.c_str());
+    if (!data.decision.empty()) ImGui::BulletText("Decisao: %s", data.decision.c_str());
     ImGui::Spacing();
     ImGui::TextWrapped("%s", data.summary.c_str());
 }
@@ -321,6 +358,7 @@ void renderCasosTab(const ArtifactRoundData& data) {
     ImGui::TextWrapped("Contexto: %s", data.caseContext.c_str());
     ImGui::TextWrapped("Rejeicao automatica: %s", data.automaticRejection.c_str());
     ImGui::TextWrapped("Gatilho: %s", data.trigger.c_str());
+    if (!data.latentRejection.empty()) ImGui::TextWrapped("Heuristica latente: %s", data.latentRejection.c_str());
     ImGui::Separator();
     ImGui::TextUnformatted(data.caseMarkdown.c_str());
 }
@@ -330,6 +368,9 @@ void renderHipotesesTab(const ArtifactRoundData& data) {
     ImGui::Separator();
     ImGui::TextWrapped("%s", data.hypothesisStatement.c_str());
     ImGui::BulletText("Melhoria esperada: %s%%", data.expectedImprovementPct.c_str());
+    if (!data.reframingTitle.empty()) ImGui::BulletText("Reframing: %s", data.reframingTitle.c_str());
+    if (!data.reframingStrategy.empty()) ImGui::TextWrapped("Estrategia: %s", data.reframingStrategy.c_str());
+    if (!data.expectedPerceptionShift.empty()) ImGui::TextWrapped("Mudanca esperada: %s", data.expectedPerceptionShift.c_str());
     ImGui::Separator();
     ImGui::TextUnformatted(data.hypothesisMarkdown.c_str());
 }
@@ -337,9 +378,12 @@ void renderHipotesesTab(const ArtifactRoundData& data) {
 void renderExperimentosTab(const ArtifactRoundData& data) {
     ImGui::Text("Experimento carregado");
     ImGui::Separator();
+    if (!data.activationTrigger.empty()) ImGui::BulletText("Gatilho: %s", data.activationTrigger.c_str());
+    if (!data.exposureDesign.empty()) ImGui::BulletText("Exposicao: %s", data.exposureDesign.c_str());
     ImGui::BulletText("Evidencias: %s", data.evidenceCount.c_str());
     ImGui::BulletText("Confianca media: %s", data.averageConfidence.c_str());
     ImGui::BulletText("Hipotese corroborada: %s", data.hypothesisSupported.c_str());
+    if (!data.decision.empty()) ImGui::BulletText("Decisao: %s", data.decision.c_str());
     ImGui::Separator();
     ImGui::TextUnformatted(data.experimentMarkdown.c_str());
 }
@@ -363,7 +407,8 @@ void renderDecisaoTab(const ArtifactRoundData& data) {
     ImGui::BulletText("Hipotese corroborada: %s", data.hypothesisSupported.c_str());
     ImGui::BulletText("Resumo: %s", data.summary.c_str());
     ImGui::BulletText("Proxima acao sugerida: %s",
-                      data.hypothesisSupported == "yes" ? "promover" : "iterar");
+                      data.decision.empty() ? (data.hypothesisSupported == "yes" ? "promover" : "iterar")
+                                            : data.decision.c_str());
 }
 
 void renderDocumentsTab(const std::vector<ProjectDocument>& documents, int& selectedDocument) {
@@ -453,6 +498,8 @@ int runGuiApp() {
     fs::path projectRoot = findProjectRootForDocs(workspace.projectRoot).value_or(workspace.projectRoot);
     std::vector<ProjectDocument> documents = loadProjectDocuments(projectRoot);
     std::optional<ArtifactRoundData> artifactData = loadArtifactRoundData(candidateRoundDirectories(workspace));
+    std::string currentRoundId = workspace.activeRoundRoot.filename().string();
+    std::vector<std::string> roundIds = listWorkspaceRoundIds(workspace);
     int selectedDocument = 0;
     bool focusDocumentsTab = false;
     bool openWorkspacePicker = false;
@@ -461,13 +508,14 @@ int runGuiApp() {
     copyStringToBuffer(workspace.workspaceRoot.string(), workspaceInput.data(), workspaceInput.size());
 
     const auto reloadWorkspace = [&]() {
-        workspace = resolveWorkspaceLayout(fs::current_path(), explicitWorkspaceRoot);
+        workspace = resolveWorkspaceLayout(fs::current_path(), explicitWorkspaceRoot, currentRoundId);
         ensureWorkspaceInitialized(workspace);
         projectRoot = findProjectRootForDocs(workspace.projectRoot).value_or(workspace.projectRoot);
         documents = loadProjectDocuments(projectRoot);
         artifactData = loadArtifactRoundData(candidateRoundDirectories(workspace));
+        roundIds = listWorkspaceRoundIds(workspace);
         copyStringToBuffer(workspace.workspaceRoot.string(), workspaceInput.data(), workspaceInput.size());
-        statusMessage = "Workspace ativo: " + workspace.workspaceRoot.string();
+        statusMessage = "Workspace ativo: " + workspace.workspaceRoot.string() + " | rodada: " + currentRoundId;
     };
 
     bool running = true;
@@ -582,6 +630,19 @@ int runGuiApp() {
             documents = loadProjectDocuments(projectRoot);
         }
         ImGui::SameLine();
+        ImGui::SetNextItemWidth(180.f);
+        if (ImGui::BeginCombo("Rodada", currentRoundId.c_str())) {
+            for (const auto& roundId : roundIds) {
+                const bool selected = (roundId == currentRoundId);
+                if (ImGui::Selectable(roundId.c_str(), selected)) {
+                    currentRoundId = roundId;
+                    reloadWorkspace();
+                }
+                if (selected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
         ImGui::TextDisabled("Workspace: %s", workspace.workspaceRoot.string().c_str());
         ImGui::SameLine();
         ImGui::TextDisabled("| %s", statusMessage.c_str());
@@ -632,6 +693,7 @@ int runGuiApp() {
             try {
                 const RoundArtifacts artifacts = recordVirtualLabRoundInWorkspace(workspace);
                 (void)artifacts;
+                roundIds = listWorkspaceRoundIds(workspace);
                 artifactData = loadArtifactRoundData(candidateRoundDirectories(workspace));
             } catch (const std::exception& ex) {
                 std::fprintf(stderr, "recordVirtualLabRound failed: %s\n", ex.what());

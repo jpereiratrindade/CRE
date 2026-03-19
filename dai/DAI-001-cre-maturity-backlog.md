@@ -24,17 +24,17 @@ Subir maturidade, confiabilidade e governança do `CRE`, conectando o motor conc
 
 4. `P1` Introduzir `PerceptionShiftReport` no código
    - owner: `core`
-   - status: `todo`
+   - status: `done`
    - saída: tipo explícito no domínio C++
 
 5. `P1` Representar `Rejeição`, `Gatilho`, `Reframing` e `Exposição` como entidades/VOs no core
    - owner: `core`
-   - status: `todo`
+   - status: `done`
    - saída: modelagem C++ alinhada ao `CRECycle`
 
 6. `P1` Fazer a GUI navegar múltiplas rodadas do workspace
    - owner: `ui`
-   - status: `todo`
+   - status: `done`
    - saída: seletor de rodada + histórico
 
 7. `P1` Criar backlog DAI operacional por rodada
@@ -44,7 +44,7 @@ Subir maturidade, confiabilidade e governança do `CRE`, conectando o motor conc
 
 8. `P2` Adicionar leak check e guardas extras de execução no CI
    - owner: `quality`
-   - status: `todo`
+   - status: `in_progress`
    - saída: mais confiabilidade de execução
 
 9. `P2` Produzir casos reais adicionais

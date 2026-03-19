@@ -29,11 +29,11 @@ O primeiro ambiente operacional do projeto é o `Laboratório Virtual`, onde cas
   - `./scripts/dev/install-git-hooks.sh`
 
 ## CLI Inicial
-- Rodar a demonstração do Laboratório Virtual:
+- Abrir a GUI do Laboratório Virtual:
   - `./build/cre`
-  - ou `./build/cre demo`
-- Abrir o shell inicial em SDL2 + Dear ImGui:
-  - `./build/cre gui`
+  - ou `./build/cre gui`
+- Rodar a demonstração textual do Laboratório Virtual:
+  - `./build/cre demo`
 - Abrir ajuda documental direto na GUI:
   - `F1` abre a aba `Documentos`
   - `Ctrl+1` `README`
@@ -45,6 +45,9 @@ O primeiro ambiente operacional do projeto é o `Laboratório Virtual`, onde cas
   - `File > Escolher workspace...`
   - `File > Recarregar workspace`
   - `File > Sair`
+- Navegação de rodadas:
+  - combo `Rodada` para alternar entre múltiplas rodadas do `workspace`
+  - botão `Registrar Rodada Demo no Workspace` para materializar a rodada ativa
 - Registrar uma rodada inicial em artefatos Markdown:
   - `./build/cre record-round`
   - `./build/cre record-round --round-id lv-round-002`
@@ -77,7 +80,7 @@ Estrutura mínima:
 - `workspace/cycles/`
 - `workspace/logs/`
 - `workspace/exports/`
-- `workspace/.cre/state.json`
+- `workspace/.cre/cache/`
 
 Compatibilidade:
 - a GUI e o core priorizam `workspace/rounds/<round-id>`
@@ -141,9 +144,9 @@ A base oficial do `Laboratório Virtual` está em `ddd/LaboratorioVirtual.md` e 
 
 ## Licença
 Este projeto é distribuído sob a licença `GNU GPL v3.0 or later`.
-O texto integral está em [LICENSE](/run/media/jpereiratrindade/labeco10T/dev/cpp/cre/LICENSE).
+O texto integral está em [LICENSE](LICENSE).
 
 ## Próximo Passo Natural
 - transformar o Laboratório Virtual em um módulo mais operacional com casos, hipóteses, experimentos e evidências versionadas
-- formalizar um `CRE Cycle` como pipeline dominante do sistema
-- levar o `CRE Cycle` para o código e para a navegação da GUI
+- ampliar o `PerceptionShiftReport` e os artefatos para múltiplos casos reais
+- consolidar a GUI como navegador operacional de rodadas do `workspace`

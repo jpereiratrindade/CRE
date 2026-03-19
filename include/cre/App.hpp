@@ -17,6 +17,28 @@ struct LabCase {
     std::string trigger;
 };
 
+struct RejectionSignal {
+    std::string heuristic;
+    std::string observedPhrase;
+};
+
+struct ActivationTrigger {
+    std::string primary;
+    std::string secondary;
+};
+
+struct ReframingStrategy {
+    std::string title;
+    std::string entryShift;
+    std::string expectedPerceptionShift;
+};
+
+struct ControlledExposure {
+    std::string design;
+    std::vector<std::string> steps;
+    std::string guardrail;
+};
+
 class Hypothesis {
 public:
     Hypothesis(std::string statement, double expectedImprovementPct);
@@ -39,13 +61,23 @@ struct Evidence {
 
 class Experiment {
 public:
-    Experiment(LabCase labCase, Hypothesis hypothesis);
+    Experiment(
+        LabCase labCase,
+        RejectionSignal rejection,
+        ActivationTrigger trigger,
+        Hypothesis hypothesis,
+        ReframingStrategy reframing,
+        ControlledExposure exposure);
 
     void addEvidence(Evidence evidence);
     bool execute();
 
     [[nodiscard]] const LabCase& labCase() const;
+    [[nodiscard]] const RejectionSignal& rejection() const;
+    [[nodiscard]] const ActivationTrigger& activationTrigger() const;
     [[nodiscard]] const Hypothesis& hypothesis() const;
+    [[nodiscard]] const ReframingStrategy& reframing() const;
+    [[nodiscard]] const ControlledExposure& exposure() const;
     [[nodiscard]] const std::vector<Evidence>& evidences() const;
     [[nodiscard]] bool wasExecuted() const;
     [[nodiscard]] bool supportsHypothesis() const;
@@ -53,18 +85,29 @@ public:
 
 private:
     LabCase m_labCase;
+    RejectionSignal m_rejection;
+    ActivationTrigger m_trigger;
     Hypothesis m_hypothesis;
+    ReframingStrategy m_reframing;
+    ControlledExposure m_exposure;
     std::vector<Evidence> m_evidences;
     bool m_executed{false};
 };
 
-struct VirtualLabReport {
+struct PerceptionShiftReport {
     std::string caseId;
+    std::string latentRejection;
+    std::string activationTrigger;
+    std::string reframingStrategy;
+    std::string exposureDesign;
     bool hypothesisSupported{false};
+    std::string decision;
     std::size_t evidenceCount{0};
     double averageConfidence{0.0};
     std::string summary;
 };
+
+using VirtualLabReport = PerceptionShiftReport;
 
 struct RoundArtifacts {
     std::filesystem::path casePath;
@@ -96,6 +139,7 @@ void ensureWorkspaceInitialized(const WorkspaceLayout& layout);
 [[nodiscard]] RoundArtifacts recordVirtualLabRoundInWorkspace(
     const WorkspaceLayout& layout,
     bool mirrorLegacyOutput = false);
+[[nodiscard]] std::vector<std::filesystem::path> listWorkspaceRounds(const WorkspaceLayout& layout);
 [[nodiscard]] std::vector<std::filesystem::path> candidateRoundDirectories(const WorkspaceLayout& layout);
 
 } // namespace cre

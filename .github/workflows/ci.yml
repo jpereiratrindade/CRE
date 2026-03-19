@@ -12,7 +12,8 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++ python3 clang-format clang-tidy libsdl2-dev libgl1-mesa-dev
+          sudo apt-get install -y cmake ninja-build g++ python3 python3-pip clang-format clang-tidy libsdl2-dev libgl1-mesa-dev
+          python3 -m pip install --break-system-packages lizard
       - name: Configure
         run: >
           cmake -S . -B build
@@ -23,5 +24,15 @@ jobs:
         run: cmake --build build --parallel
       - name: Test
         run: ctest --test-dir build --output-on-failure
+      - name: Leak check
+        run: |
+          cmake -S . -B build-sanitize -G Ninja -Dcre_ENABLE_SANITIZERS=ON
+          cmake --build build-sanitize --parallel
+          ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
+            ctest --test-dir build-sanitize --output-on-failure
+      - name: Complexity guard
+        run: lizard -l cpp -C 15 src include tests
+      - name: Cycle guard
+        run: python3 scripts/check_include_cycles.py --roots include src
       - name: Run quality
         run: ./scripts/run_quality.sh

@@ -1,5 +1,6 @@
 #include "cre/App.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <optional>
@@ -57,23 +58,33 @@ std::string renderCaseArtifact(const LabCase& labCase) {
     return out.str();
 }
 
-std::string renderHypothesisArtifact(const std::string& caseId, const Hypothesis& hypothesis) {
+std::string renderHypothesisArtifact(const std::string& caseId,
+                                     const Hypothesis& hypothesis,
+                                     const ReframingStrategy& reframing) {
     std::ostringstream out;
     out << "# Virtual Lab Hypothesis\n\n";
     out << "- related_case_id: `" << caseId << "`\n";
     out << "- statement: " << hypothesis.statement() << "\n";
     out << "- expected_improvement_pct: " << hypothesis.expectedImprovementPct() << "\n";
     out << "- testable: " << (hypothesis.isTestable() ? "yes" : "no") << "\n";
+    out << "- reframing_title: " << reframing.title << "\n";
+    out << "- reframing_strategy: " << reframing.entryShift << "\n";
+    out << "- expected_perception_shift: " << reframing.expectedPerceptionShift << "\n";
     return out.str();
 }
 
-std::string renderExperimentArtifact(const VirtualLabReport& report) {
+std::string renderExperimentArtifact(const PerceptionShiftReport& report) {
     std::ostringstream out;
     out << "# Virtual Lab Experiment\n\n";
     out << "- case_id: `" << report.caseId << "`\n";
+    out << "- latent_rejection: " << report.latentRejection << "\n";
+    out << "- activation_trigger: " << report.activationTrigger << "\n";
+    out << "- reframing_strategy: " << report.reframingStrategy << "\n";
+    out << "- exposure_design: " << report.exposureDesign << "\n";
     out << "- evidence_count: " << report.evidenceCount << "\n";
     out << "- average_confidence: " << report.averageConfidence << "\n";
     out << "- hypothesis_supported: " << (report.hypothesisSupported ? "yes" : "no") << "\n";
+    out << "- decision: " << report.decision << "\n";
     out << "- summary: " << report.summary << "\n";
     return out.str();
 }
@@ -122,13 +133,35 @@ Experiment buildVirtualLabExperiment() {
         .automaticRejection = "Isso parece complexo demais para valer o teste.",
         .trigger = "Excesso de abstracao e linguagem tecnica logo na entrada."
     };
+    RejectionSignal rejection{
+        .heuristic = "complexidade alta = nao vale testar",
+        .observedPhrase = "Isso parece complexo demais para valer o teste."
+    };
+    ActivationTrigger trigger{
+        .primary = "Excesso de abstracao e linguagem tecnica logo na entrada.",
+        .secondary = "Apresentacao de arquitetura antes de experiencia concreta."
+    };
 
     Hypothesis hypothesis{
         "Se a abertura iniciar por uma demonstracao concreta de uso, entao a rejeicao inicial reduz porque o valor aparece antes da carga conceitual.",
         15.0
     };
+    ReframingStrategy reframing{
+        .title = "Valor primeiro, teoria depois",
+        .entryShift = "Trocar abertura abstrata por demonstracao curta de uso real.",
+        .expectedPerceptionShift = "Mudar de defesa inicial para curiosidade de aplicacao."
+    };
+    ControlledExposure exposure{
+        .design = "Demonstracao curta antes da explicacao arquitetural.",
+        .steps = {
+            "Apresentar demo de 2 minutos.",
+            "Explicar arquitetura apenas apos a demo.",
+            "Coletar perguntas dos 10 primeiros minutos."
+        },
+        .guardrail = "Nao promover reframing sem entrega observavel."
+    };
 
-    Experiment experiment{labCase, hypothesis};
+    Experiment experiment{labCase, rejection, trigger, hypothesis, reframing, exposure};
     experiment.addEvidence({
         .id = "LV-EVD-101",
         .source = "simulacao-de-apresentacao-v1",
@@ -163,8 +196,18 @@ bool Hypothesis::isTestable() const {
     return !m_statement.empty() && m_expectedImprovementPct > 0.0;
 }
 
-Experiment::Experiment(LabCase labCase, Hypothesis hypothesis)
-    : m_labCase(std::move(labCase)), m_hypothesis(std::move(hypothesis)) {
+Experiment::Experiment(LabCase labCase,
+                       RejectionSignal rejection,
+                       ActivationTrigger trigger,
+                       Hypothesis hypothesis,
+                       ReframingStrategy reframing,
+                       ControlledExposure exposure)
+    : m_labCase(std::move(labCase)),
+      m_rejection(std::move(rejection)),
+      m_trigger(std::move(trigger)),
+      m_hypothesis(std::move(hypothesis)),
+      m_reframing(std::move(reframing)),
+      m_exposure(std::move(exposure)) {
 }
 
 void Experiment::addEvidence(Evidence evidence) {
@@ -180,8 +223,24 @@ const LabCase& Experiment::labCase() const {
     return m_labCase;
 }
 
+const RejectionSignal& Experiment::rejection() const {
+    return m_rejection;
+}
+
+const ActivationTrigger& Experiment::activationTrigger() const {
+    return m_trigger;
+}
+
 const Hypothesis& Experiment::hypothesis() const {
     return m_hypothesis;
+}
+
+const ReframingStrategy& Experiment::reframing() const {
+    return m_reframing;
+}
+
+const ControlledExposure& Experiment::exposure() const {
+    return m_exposure;
 }
 
 const std::vector<Evidence>& Experiment::evidences() const {
@@ -213,12 +272,17 @@ Experiment createVirtualLabCycleDemo() {
     return buildVirtualLabExperiment();
 }
 
-VirtualLabReport runVirtualLabCycleDemo() {
+PerceptionShiftReport runVirtualLabCycleDemo() {
     const Experiment experiment = createVirtualLabCycleDemo();
 
-    VirtualLabReport report;
+    PerceptionShiftReport report;
     report.caseId = experiment.labCase().id;
+    report.latentRejection = experiment.rejection().heuristic;
+    report.activationTrigger = experiment.activationTrigger().primary;
+    report.reframingStrategy = experiment.reframing().entryShift;
+    report.exposureDesign = experiment.exposure().design;
     report.hypothesisSupported = experiment.supportsHypothesis();
+    report.decision = report.hypothesisSupported ? "promover" : "iterar";
     report.evidenceCount = experiment.evidences().size();
     report.averageConfidence = experiment.averageConfidence();
 
@@ -232,9 +296,14 @@ VirtualLabReport runVirtualLabCycleDemo() {
     return report;
 }
 
-std::string renderExperimentReport(const VirtualLabReport& report) {
+std::string renderExperimentReport(const PerceptionShiftReport& report) {
     std::ostringstream out;
     out << buildLabStatusMessage() << "\n";
+    out << "Rejeicao: " << report.latentRejection << "\n";
+    out << "Gatilho: " << report.activationTrigger << "\n";
+    out << "Reframing: " << report.reframingStrategy << "\n";
+    out << "Exposicao: " << report.exposureDesign << "\n";
+    out << "Decisao: " << report.decision << "\n";
     out << report.summary << "\n";
     return out.str();
 }
@@ -257,7 +326,8 @@ RoundArtifacts recordVirtualLabRound(const fs::path& outputDir) {
     };
 
     writeTextFile(artifacts.casePath, renderCaseArtifact(experiment.labCase()));
-    writeTextFile(artifacts.hypothesisPath, renderHypothesisArtifact(experiment.labCase().id, experiment.hypothesis()));
+    writeTextFile(artifacts.hypothesisPath,
+                  renderHypothesisArtifact(experiment.labCase().id, experiment.hypothesis(), experiment.reframing()));
     writeTextFile(artifacts.experimentPath, renderExperimentArtifact(report));
     writeTextFile(artifacts.evidencePath, renderEvidenceArtifact(experiment.evidences()));
 
@@ -341,6 +411,31 @@ std::vector<fs::path> candidateRoundDirectories(const WorkspaceLayout& layout) {
         candidates.push_back(layout.legacyRoundRoot);
     }
     return candidates;
+}
+
+std::vector<fs::path> listWorkspaceRounds(const WorkspaceLayout& layout) {
+    std::vector<fs::path> roundDirs;
+    std::error_code ec;
+    if (fs::exists(layout.roundsRoot, ec) && fs::is_directory(layout.roundsRoot, ec)) {
+        for (const auto& entry : fs::directory_iterator(layout.roundsRoot, fs::directory_options::skip_permission_denied, ec)) {
+            if (!entry.is_directory(ec)) continue;
+            roundDirs.push_back(entry.path());
+        }
+    }
+
+    if (std::find(roundDirs.begin(), roundDirs.end(), layout.activeRoundRoot) == roundDirs.end()) {
+        roundDirs.push_back(layout.activeRoundRoot);
+    }
+
+    std::sort(roundDirs.begin(), roundDirs.end(), [&](const fs::path& a, const fs::path& b) {
+        std::error_code aec;
+        std::error_code bec;
+        const auto at = fs::last_write_time(a, aec);
+        const auto bt = fs::last_write_time(b, bec);
+        if (!aec && !bec && at != bt) return at > bt;
+        return a.filename().string() < b.filename().string();
+    });
+    return roundDirs;
 }
 
 } // namespace cre
