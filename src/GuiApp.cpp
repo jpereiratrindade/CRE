@@ -43,6 +43,7 @@ struct ArtifactRoundData {
     std::string caseTitle;
     std::string caseContext;
     std::string automaticRejection;
+    std::string observedPhrase;
     std::string trigger;
     std::string hypothesisStatement;
     std::string reframingTitle;
@@ -51,12 +52,14 @@ struct ArtifactRoundData {
     std::string latentRejection;
     std::string activationTrigger;
     std::string exposureDesign;
+    std::string exposureGuardrail;
     std::string expectedImprovementPct;
     std::string evidenceCount;
     std::string averageConfidence;
     std::string hypothesisSupported;
     std::string decision;
     std::string summary;
+    std::string ethicalLimit;
     std::vector<ArtifactEvidenceEntry> evidences;
     std::string caseMarkdown;
     std::string hypothesisMarkdown;
@@ -70,6 +73,28 @@ struct ProjectDocument {
     fs::path path;
     std::string description;
     std::string content;
+};
+
+struct DraftEditorState {
+    std::array<char, 64> roundId{};
+    std::array<char, 64> caseId{};
+    std::array<char, 96> scenarioLabel{};
+    std::array<char, 256> scenarioDescription{};
+    std::array<char, 256> caseTitle{};
+    std::array<char, 512> caseContext{};
+    std::array<char, 256> automaticRejection{};
+    std::array<char, 256> latentRejection{};
+    std::array<char, 256> observedPhrase{};
+    std::array<char, 256> triggerPrimary{};
+    std::array<char, 256> triggerSecondary{};
+    std::array<char, 512> hypothesisStatement{};
+    std::array<char, 32> expectedImprovementPct{};
+    std::array<char, 128> reframingTitle{};
+    std::array<char, 512> reframingStrategy{};
+    std::array<char, 256> expectedPerceptionShift{};
+    std::array<char, 256> exposureDesign{};
+    std::array<char, 256> exposureGuardrail{};
+    std::array<char, 256> ethicalLimit{};
 };
 
 std::string trimCopy(const std::string& value) {
@@ -99,6 +124,42 @@ void copyStringToBuffer(const std::string& value, char* buffer, std::size_t size
     const std::size_t copySize = std::min(value.size(), size - 1);
     std::memcpy(buffer, value.data(), copySize);
     buffer[copySize] = '\0';
+}
+
+void resetDraftEditor(DraftEditorState& editor,
+                      const WorkspaceLayout& workspace,
+                      const std::string& scenarioId,
+                      const std::string& scenarioLabel,
+                      const std::string& scenarioDescription) {
+    for (char& c : editor.roundId) c = '\0';
+    for (char& c : editor.caseId) c = '\0';
+    for (char& c : editor.scenarioLabel) c = '\0';
+    for (char& c : editor.scenarioDescription) c = '\0';
+    for (char& c : editor.caseTitle) c = '\0';
+    for (char& c : editor.caseContext) c = '\0';
+    for (char& c : editor.automaticRejection) c = '\0';
+    for (char& c : editor.latentRejection) c = '\0';
+    for (char& c : editor.observedPhrase) c = '\0';
+    for (char& c : editor.triggerPrimary) c = '\0';
+    for (char& c : editor.triggerSecondary) c = '\0';
+    for (char& c : editor.hypothesisStatement) c = '\0';
+    for (char& c : editor.expectedImprovementPct) c = '\0';
+    for (char& c : editor.reframingTitle) c = '\0';
+    for (char& c : editor.reframingStrategy) c = '\0';
+    for (char& c : editor.expectedPerceptionShift) c = '\0';
+    for (char& c : editor.exposureDesign) c = '\0';
+    for (char& c : editor.exposureGuardrail) c = '\0';
+    for (char& c : editor.ethicalLimit) c = '\0';
+
+    copyStringToBuffer(buildNextRoundId(workspace), editor.roundId.data(), editor.roundId.size());
+    copyStringToBuffer(buildNextCaseId(workspace), editor.caseId.data(), editor.caseId.size());
+    copyStringToBuffer(scenarioLabel, editor.scenarioLabel.data(), editor.scenarioLabel.size());
+    copyStringToBuffer(scenarioDescription, editor.scenarioDescription.data(), editor.scenarioDescription.size());
+    copyStringToBuffer("10", editor.expectedImprovementPct.data(), editor.expectedImprovementPct.size());
+    copyStringToBuffer("Reframing manual", editor.reframingTitle.data(), editor.reframingTitle.size());
+    copyStringToBuffer("Nao promover reframing sem entrega real e observavel.", editor.exposureGuardrail.data(), editor.exposureGuardrail.size());
+    copyStringToBuffer("Nao mascarar o tema real nem reduzir a substancia do contexto.", editor.ethicalLimit.data(), editor.ethicalLimit.size());
+    (void)scenarioId;
 }
 
 std::optional<fs::path> findProjectRootForDocs(const fs::path& startDir) {
@@ -244,6 +305,7 @@ std::optional<ArtifactRoundData> loadArtifactRoundData(const fs::path& rootDir) 
     data.caseTitle = extractBulletValue(data.caseMarkdown, "title");
     data.caseContext = extractBulletValue(data.caseMarkdown, "context");
     data.automaticRejection = extractBulletValue(data.caseMarkdown, "automatic_rejection");
+    data.observedPhrase = extractBulletValue(data.caseMarkdown, "observed_phrase");
     data.trigger = extractBulletValue(data.caseMarkdown, "trigger");
     data.hypothesisStatement = extractBulletValue(data.hypothesisMarkdown, "statement");
     data.reframingTitle = extractBulletValue(data.hypothesisMarkdown, "reframing_title");
@@ -253,11 +315,13 @@ std::optional<ArtifactRoundData> loadArtifactRoundData(const fs::path& rootDir) 
     data.latentRejection = extractBulletValue(data.experimentMarkdown, "latent_rejection");
     data.activationTrigger = extractBulletValue(data.experimentMarkdown, "activation_trigger");
     data.exposureDesign = extractBulletValue(data.experimentMarkdown, "exposure_design");
+    data.exposureGuardrail = extractBulletValue(data.experimentMarkdown, "exposure_guardrail");
     data.evidenceCount = extractBulletValue(data.experimentMarkdown, "evidence_count");
     data.averageConfidence = extractBulletValue(data.experimentMarkdown, "average_confidence");
     data.hypothesisSupported = extractBulletValue(data.experimentMarkdown, "hypothesis_supported");
     data.decision = extractBulletValue(data.experimentMarkdown, "decision");
     data.summary = extractBulletValue(data.experimentMarkdown, "summary");
+    data.ethicalLimit = extractBulletValue(data.metadataMarkdown, "ethical_limit");
     data.evidences = parseEvidenceEntries(data.evidenceMarkdown);
     return data;
 }
@@ -382,6 +446,7 @@ void renderCasosTab(const ArtifactRoundData& data) {
     ImGui::Text("Titulo: %s", data.caseTitle.c_str());
     ImGui::TextWrapped("Contexto: %s", data.caseContext.c_str());
     ImGui::TextWrapped("Rejeicao automatica: %s", data.automaticRejection.c_str());
+    if (!data.observedPhrase.empty()) ImGui::TextWrapped("Frase observada: %s", data.observedPhrase.c_str());
     ImGui::TextWrapped("Gatilho: %s", data.trigger.c_str());
     if (!data.latentRejection.empty()) ImGui::TextWrapped("Heuristica latente: %s", data.latentRejection.c_str());
     ImGui::Separator();
@@ -405,6 +470,8 @@ void renderExperimentosTab(const ArtifactRoundData& data) {
     ImGui::Separator();
     if (!data.activationTrigger.empty()) ImGui::BulletText("Gatilho: %s", data.activationTrigger.c_str());
     if (!data.exposureDesign.empty()) ImGui::BulletText("Exposicao: %s", data.exposureDesign.c_str());
+    if (!data.exposureGuardrail.empty()) ImGui::BulletText("Guardrail: %s", data.exposureGuardrail.c_str());
+    if (!data.ethicalLimit.empty()) ImGui::BulletText("Limite etico: %s", data.ethicalLimit.c_str());
     ImGui::BulletText("Evidencias: %s", data.evidenceCount.c_str());
     ImGui::BulletText("Confianca media: %s", data.averageConfidence.c_str());
     ImGui::BulletText("Hipotese corroborada: %s", data.hypothesisSupported.c_str());
@@ -530,7 +597,9 @@ int runGuiApp() {
     int selectedDocument = 0;
     bool focusDocumentsTab = false;
     bool openWorkspacePicker = false;
+    bool openNewReframingModal = false;
     std::array<char, 1024> workspaceInput{};
+    DraftEditorState draftEditor{};
     std::string statusMessage = "Workspace pronto.";
     copyStringToBuffer(workspace.workspaceRoot.string(), workspaceInput.data(), workspaceInput.size());
 
@@ -553,6 +622,15 @@ int runGuiApp() {
         report = runVirtualLabCycleDemo(currentScenarioId);
     };
 
+    const auto resetDraftForCurrentScenario = [&]() {
+        resetDraftEditor(
+            draftEditor,
+            workspace,
+            currentScenarioId,
+            selectedScenarioLabel(),
+            selectedScenarioDescription());
+    };
+
     const auto reloadWorkspace = [&]() {
         workspace = resolveWorkspaceLayout(fs::current_path(), explicitWorkspaceRoot, currentRoundId);
         ensureWorkspaceInitialized(workspace);
@@ -564,7 +642,10 @@ int runGuiApp() {
         copyStringToBuffer(workspace.workspaceRoot.string(), workspaceInput.data(), workspaceInput.size());
         statusMessage = "Workspace ativo: " + workspace.workspaceRoot.string() + " | rodada: " + currentRoundId
                       + " | cenario: " + currentScenarioId;
+        resetDraftForCurrentScenario();
     };
+
+    resetDraftForCurrentScenario();
 
     bool running = true;
     while (running) {
@@ -603,6 +684,10 @@ int runGuiApp() {
 
         if (ImGui::BeginMenuBar()) {
             if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Novo Reframing...")) {
+                    resetDraftForCurrentScenario();
+                    openNewReframingModal = true;
+                }
                 if (ImGui::MenuItem("Escolher workspace...")) {
                     copyStringToBuffer(workspace.workspaceRoot.string(), workspaceInput.data(), workspaceInput.size());
                     openWorkspacePicker = true;
@@ -628,6 +713,10 @@ int runGuiApp() {
         if (openWorkspacePicker) {
             ImGui::OpenPopup("Escolher Workspace");
             openWorkspacePicker = false;
+        }
+        if (openNewReframingModal) {
+            ImGui::OpenPopup("Novo Reframing");
+            openNewReframingModal = false;
         }
 
         if (ImGui::BeginPopupModal("Escolher Workspace", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -659,6 +748,87 @@ int runGuiApp() {
             ImGui::EndPopup();
         }
 
+        if (ImGui::BeginPopupModal("Novo Reframing", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::TextWrapped("Crie uma nova rodada do CRECycle no workspace atual. A rodada sera salva como draft navegavel, ainda sem evidencias.");
+            ImGui::Separator();
+            ImGui::InputText("Round ID", draftEditor.roundId.data(), draftEditor.roundId.size());
+            ImGui::InputText("Case ID", draftEditor.caseId.data(), draftEditor.caseId.size());
+            ImGui::InputText("Scenario label", draftEditor.scenarioLabel.data(), draftEditor.scenarioLabel.size());
+            ImGui::InputTextMultiline("Scenario description", draftEditor.scenarioDescription.data(), draftEditor.scenarioDescription.size(), ImVec2(420.f, 50.f));
+            ImGui::InputText("Case title", draftEditor.caseTitle.data(), draftEditor.caseTitle.size());
+            ImGui::InputTextMultiline("Case context", draftEditor.caseContext.data(), draftEditor.caseContext.size(), ImVec2(420.f, 60.f));
+            ImGui::InputText("Automatic rejection", draftEditor.automaticRejection.data(), draftEditor.automaticRejection.size());
+            ImGui::InputText("Latent rejection", draftEditor.latentRejection.data(), draftEditor.latentRejection.size());
+            ImGui::InputText("Observed phrase", draftEditor.observedPhrase.data(), draftEditor.observedPhrase.size());
+            ImGui::InputText("Trigger primary", draftEditor.triggerPrimary.data(), draftEditor.triggerPrimary.size());
+            ImGui::InputText("Trigger secondary", draftEditor.triggerSecondary.data(), draftEditor.triggerSecondary.size());
+            ImGui::InputTextMultiline("Hypothesis", draftEditor.hypothesisStatement.data(), draftEditor.hypothesisStatement.size(), ImVec2(420.f, 60.f));
+            ImGui::InputText("Expected improvement %", draftEditor.expectedImprovementPct.data(), draftEditor.expectedImprovementPct.size());
+            ImGui::InputText("Reframing title", draftEditor.reframingTitle.data(), draftEditor.reframingTitle.size());
+            ImGui::InputTextMultiline("Reframing strategy", draftEditor.reframingStrategy.data(), draftEditor.reframingStrategy.size(), ImVec2(420.f, 60.f));
+            ImGui::InputText("Expected perception shift", draftEditor.expectedPerceptionShift.data(), draftEditor.expectedPerceptionShift.size());
+            ImGui::InputText("Exposure design", draftEditor.exposureDesign.data(), draftEditor.exposureDesign.size());
+            ImGui::InputText("Exposure guardrail", draftEditor.exposureGuardrail.data(), draftEditor.exposureGuardrail.size());
+            ImGui::InputText("Ethical limit", draftEditor.ethicalLimit.data(), draftEditor.ethicalLimit.size());
+            ImGui::Spacing();
+
+            if (ImGui::Button("Salvar Draft")) {
+                const std::string roundId = trimCopy(draftEditor.roundId.data());
+                const std::string caseId = trimCopy(draftEditor.caseId.data());
+                const std::string caseTitle = trimCopy(draftEditor.caseTitle.data());
+                const std::string hypothesisStatement = trimCopy(draftEditor.hypothesisStatement.data());
+                if (roundId.empty() || caseId.empty() || caseTitle.empty() || hypothesisStatement.empty()) {
+                    statusMessage = "Round ID, Case ID, Case title e Hypothesis sao obrigatorios.";
+                } else {
+                    ReframingDraft draft;
+                    draft.roundId = roundId;
+                    draft.scenarioId = currentScenarioId;
+                    draft.scenarioLabel = trimCopy(draftEditor.scenarioLabel.data());
+                    draft.scenarioDescription = trimCopy(draftEditor.scenarioDescription.data());
+                    draft.caseId = caseId;
+                    draft.caseTitle = caseTitle;
+                    draft.caseContext = trimCopy(draftEditor.caseContext.data());
+                    draft.automaticRejection = trimCopy(draftEditor.automaticRejection.data());
+                    draft.latentRejection = trimCopy(draftEditor.latentRejection.data());
+                    draft.observedPhrase = trimCopy(draftEditor.observedPhrase.data());
+                    draft.activationTriggerPrimary = trimCopy(draftEditor.triggerPrimary.data());
+                    draft.activationTriggerSecondary = trimCopy(draftEditor.triggerSecondary.data());
+                    draft.hypothesisStatement = hypothesisStatement;
+                    draft.expectedImprovementPct = std::atof(draftEditor.expectedImprovementPct.data());
+                    draft.reframingTitle = trimCopy(draftEditor.reframingTitle.data());
+                    draft.reframingStrategy = trimCopy(draftEditor.reframingStrategy.data());
+                    draft.expectedPerceptionShift = trimCopy(draftEditor.expectedPerceptionShift.data());
+                    draft.exposureDesign = trimCopy(draftEditor.exposureDesign.data());
+                    draft.exposureGuardrail = trimCopy(draftEditor.exposureGuardrail.data());
+                    draft.ethicalLimit = trimCopy(draftEditor.ethicalLimit.data());
+
+                    WorkspaceLayout draftLayout =
+                        resolveWorkspaceLayout(fs::current_path(), explicitWorkspaceRoot, draft.roundId);
+                    try {
+                        const RoundArtifacts artifacts = recordDraftRoundInWorkspace(draftLayout, draft);
+                        (void)artifacts;
+                        currentRoundId = draft.roundId;
+                        workspace = draftLayout;
+                        artifactData = loadArtifactRoundData(candidateRoundDirectories(workspace));
+                        roundIds = listWorkspaceRoundIds(workspace);
+                        statusMessage = "Draft criado para a rodada " + currentRoundId;
+                        ImGui::CloseCurrentPopup();
+                    } catch (const std::exception& ex) {
+                        statusMessage = std::string("Falha ao salvar draft: ") + ex.what();
+                    }
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Resetar")) {
+                resetDraftForCurrentScenario();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancelar")) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+
         if (artifactData.has_value()) {
             renderTopBar(*artifactData);
         } else {
@@ -667,6 +837,11 @@ int runGuiApp() {
 
         if (ImGui::Button("Ajuda Docs (F1)")) {
             focusDocumentsTab = true;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Novo Reframing")) {
+            resetDraftForCurrentScenario();
+            openNewReframingModal = true;
         }
         ImGui::SameLine();
         if (ImGui::Button("Workspace...")) {

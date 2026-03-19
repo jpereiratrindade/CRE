@@ -45,6 +45,29 @@ struct ScenarioDescriptor {
     std::string description;
 };
 
+struct ReframingDraft {
+    std::string roundId;
+    std::string scenarioId;
+    std::string scenarioLabel;
+    std::string scenarioDescription;
+    std::string caseId;
+    std::string caseTitle;
+    std::string caseContext;
+    std::string automaticRejection;
+    std::string latentRejection;
+    std::string observedPhrase;
+    std::string activationTriggerPrimary;
+    std::string activationTriggerSecondary;
+    std::string hypothesisStatement;
+    double expectedImprovementPct{0.0};
+    std::string reframingTitle;
+    std::string reframingStrategy;
+    std::string expectedPerceptionShift;
+    std::string exposureDesign;
+    std::string exposureGuardrail;
+    std::string ethicalLimit;
+};
+
 class Hypothesis {
 public:
     Hypothesis(std::string statement, double expectedImprovementPct);
@@ -134,6 +157,8 @@ struct WorkspaceLayout {
 
 [[nodiscard]] std::string buildLabStatusMessage();
 [[nodiscard]] std::vector<ScenarioDescriptor> listVirtualLabScenarios();
+[[nodiscard]] std::string buildNextRoundId(const WorkspaceLayout& layout);
+[[nodiscard]] std::string buildNextCaseId(const WorkspaceLayout& layout);
 [[nodiscard]] Experiment createVirtualLabCycleDemo(std::string_view scenarioId = "cre-intro");
 [[nodiscard]] VirtualLabReport runVirtualLabCycleDemo(std::string_view scenarioId = "cre-intro");
 [[nodiscard]] std::string renderExperimentReport(const VirtualLabReport& report);
@@ -150,6 +175,9 @@ void ensureWorkspaceInitialized(const WorkspaceLayout& layout);
     const WorkspaceLayout& layout,
     bool mirrorLegacyOutput = false,
     std::string_view scenarioId = "cre-intro");
+[[nodiscard]] RoundArtifacts recordDraftRoundInWorkspace(
+    const WorkspaceLayout& layout,
+    const ReframingDraft& draft);
 [[nodiscard]] std::vector<std::filesystem::path> listWorkspaceRounds(const WorkspaceLayout& layout);
 [[nodiscard]] std::vector<std::filesystem::path> candidateRoundDirectories(const WorkspaceLayout& layout);
 

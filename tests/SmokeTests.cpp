@@ -101,6 +101,34 @@ int main() {
     require(roundDirs[0].filename() == "lv-round-888", "most recent round should sort first");
     require(roundDirs[1].filename() == "lv-round-777", "older round should remain available");
 
+    const cre::WorkspaceLayout draftLayout =
+        cre::resolveWorkspaceLayout(projectRoot, tempWorkspace, "lv-round-999");
+    cre::ReframingDraft draft;
+    draft.roundId = "lv-round-999";
+    draft.scenarioId = "custom-education";
+    draft.scenarioLabel = "Custom Education";
+    draft.scenarioDescription = "Draft manual criado pela GUI.";
+    draft.caseId = "LV-CASE-999";
+    draft.caseTitle = "Caso manual";
+    draft.caseContext = "Contexto manual";
+    draft.automaticRejection = "Resistencia inicial";
+    draft.latentRejection = "heuristica manual";
+    draft.observedPhrase = "frase manual";
+    draft.activationTriggerPrimary = "gatilho principal";
+    draft.activationTriggerSecondary = "gatilho secundario";
+    draft.hypothesisStatement = "Hipotese manual";
+    draft.expectedImprovementPct = 12.0;
+    draft.reframingTitle = "Reframing manual";
+    draft.reframingStrategy = "Trocar entrada";
+    draft.expectedPerceptionShift = "Curiosidade";
+    draft.exposureDesign = "Exposicao controlada";
+    draft.exposureGuardrail = "Guardrail";
+    draft.ethicalLimit = "Limite etico";
+
+    const cre::RoundArtifacts draftArtifacts = cre::recordDraftRoundInWorkspace(draftLayout, draft);
+    require(fs::exists(draftArtifacts.casePath), "draft case artifact should be written");
+    require(fs::exists(draftArtifacts.metadataPath), "draft metadata artifact should be written");
+
     fs::remove_all(tempDir, ec);
     fs::remove_all(tempWorkspace, ec);
 

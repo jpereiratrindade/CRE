@@ -48,6 +48,14 @@ std::string buildWorkspaceManifest() {
         + "  exports: exports\n";
 }
 
+std::string zeroPadNumber(int value, int width = 3) {
+    std::ostringstream out;
+    out.width(width);
+    out.fill('0');
+    out << value;
+    return out.str();
+}
+
 ScenarioDescriptor findScenarioDescriptor(std::string_view scenarioId) {
     for (const auto& scenario : listVirtualLabScenarios()) {
         if (scenario.id == scenarioId) return scenario;
@@ -67,6 +75,15 @@ std::string renderCaseArtifact(const LabCase& labCase) {
     out << "- context: " << labCase.context << "\n";
     out << "- automatic_rejection: " << labCase.automaticRejection << "\n";
     out << "- trigger: " << labCase.trigger << "\n";
+    return out.str();
+}
+
+std::string renderCaseArtifact(const LabCase& labCase, std::string_view observedPhrase) {
+    std::ostringstream out;
+    out << renderCaseArtifact(labCase);
+    if (!observedPhrase.empty()) {
+        out << "- observed_phrase: " << observedPhrase << "\n";
+    }
     return out.str();
 }
 
@@ -115,7 +132,8 @@ std::string renderEvidenceArtifact(const std::vector<Evidence>& evidences) {
 
 std::string renderRoundMetadataArtifact(const ScenarioDescriptor& scenario,
                                         const fs::path& outputDir,
-                                        const LabCase& labCase) {
+                                        const LabCase& labCase,
+                                        std::string_view ethicalLimit = {}) {
     std::ostringstream out;
     out << "# Virtual Lab Round Metadata\n\n";
     out << "- scenario_id: " << scenario.id << "\n";
@@ -123,6 +141,7 @@ std::string renderRoundMetadataArtifact(const ScenarioDescriptor& scenario,
     out << "- scenario_description: " << scenario.description << "\n";
     out << "- round_id: " << outputDir.filename().string() << "\n";
     out << "- case_id: `" << labCase.id << "`\n";
+    if (!ethicalLimit.empty()) out << "- ethical_limit: " << ethicalLimit << "\n";
     out << "- root_dir: " << outputDir.string() << "\n";
     return out.str();
 }
@@ -136,6 +155,13 @@ std::string artifactIdFromCaseId(const std::string& caseId, std::string_view tar
         return id;
     }
     return std::string(targetToken) + "-" + caseId;
+}
+
+int extractTrailingNumber(const std::string& value) {
+    std::size_t pos = value.find_last_not_of("0123456789");
+    if (pos == std::string::npos) return std::stoi(value);
+    if (pos + 1 >= value.size()) return 0;
+    return std::stoi(value.substr(pos + 1));
 }
 
 void writeTextFile(const fs::path& path, const std::string& content) {
@@ -429,6 +455,36 @@ std::vector<ScenarioDescriptor> listVirtualLabScenarios() {
     };
 }
 
+std::string buildNextRoundId(const WorkspaceLayout& layout) {
+    int maxValue = 0;
+    for (const auto& roundDir : listWorkspaceRounds(layout)) {
+        const std::string name = roundDir.filename().string();
+        if (name.rfind("lv-round-", 0) != 0) continue;
+        try {
+            maxValue = std::max(maxValue, extractTrailingNumber(name));
+        } catch (const std::exception&) {
+        }
+    }
+    return "lv-round-" + zeroPadNumber(maxValue + 1);
+}
+
+std::string buildNextCaseId(const WorkspaceLayout& layout) {
+    int maxValue = 0;
+    std::error_code ec;
+    if (fs::exists(layout.roundsRoot, ec) && fs::is_directory(layout.roundsRoot, ec)) {
+        for (const auto& entry : fs::recursive_directory_iterator(layout.roundsRoot, fs::directory_options::skip_permission_denied, ec)) {
+            if (!entry.is_regular_file(ec)) continue;
+            const std::string name = entry.path().filename().string();
+            if (name.rfind("LV-CASE-", 0) != 0 || entry.path().extension() != ".md") continue;
+            try {
+                maxValue = std::max(maxValue, extractTrailingNumber(name));
+            } catch (const std::exception&) {
+            }
+        }
+    }
+    return "LV-CASE-" + zeroPadNumber(maxValue + 1);
+}
+
 Experiment createVirtualLabCycleDemo(std::string_view scenarioId) {
     return buildVirtualLabExperiment(scenarioId.empty() ? kDefaultScenarioId : scenarioId);
 }
@@ -567,6 +623,85 @@ RoundArtifacts recordVirtualLabRoundInWorkspace(const WorkspaceLayout& layout,
         const RoundArtifacts legacyArtifacts = recordVirtualLabRound(layout.legacyRoundRoot, scenarioId);
         (void)legacyArtifacts;
     }
+    return artifacts;
+}
+
+RoundArtifacts recordDraftRoundInWorkspace(const WorkspaceLayout& layout, const ReframingDraft& draft) {
+    ensureWorkspaceInitialized(layout);
+
+    LabCase labCase{
+        .id = draft.caseId,
+        .title = draft.caseTitle,
+        .context = draft.caseContext,
+        .automaticRejection = draft.automaticRejection,
+        .trigger = draft.activationTriggerPrimary
+    };
+    Hypothesis hypothesis{draft.hypothesisStatement, draft.expectedImprovementPct};
+    ReframingStrategy reframing{
+        .title = draft.reframingTitle,
+        .entryShift = draft.reframingStrategy,
+        .expectedPerceptionShift = draft.expectedPerceptionShift
+    };
+
+    PerceptionShiftReport report;
+    report.caseId = draft.caseId;
+    report.latentRejection = draft.latentRejection;
+    report.activationTrigger = draft.activationTriggerPrimary;
+    report.reframingStrategy = draft.reframingStrategy;
+    report.exposureDesign = draft.exposureDesign;
+    report.hypothesisSupported = false;
+    report.decision = "draft";
+    report.evidenceCount = 0;
+    report.averageConfidence = 0.0;
+    report.summary = "Rodada criada manualmente para desenvolvimento do reframing.";
+
+    const ScenarioDescriptor scenario{
+        draft.scenarioId,
+        draft.scenarioLabel,
+        draft.scenarioDescription
+    };
+
+    const RoundArtifacts artifacts{
+        .casePath = layout.activeRoundRoot / (draft.caseId + ".md"),
+        .hypothesisPath = layout.activeRoundRoot / (artifactIdFromCaseId(draft.caseId, "HYP") + ".md"),
+        .experimentPath = layout.activeRoundRoot / (artifactIdFromCaseId(draft.caseId, "EXP") + ".md"),
+        .evidencePath = layout.activeRoundRoot / (artifactIdFromCaseId(draft.caseId, "EVD-LOG") + ".md"),
+        .metadataPath = layout.activeRoundRoot / "LV-ROUND-META.md"
+    };
+
+    ensureDirectory(layout.activeRoundRoot);
+
+    writeTextFile(artifacts.casePath, renderCaseArtifact(labCase, draft.observedPhrase));
+    writeTextFile(artifacts.hypothesisPath, renderHypothesisArtifact(draft.caseId, hypothesis, reframing));
+
+    std::ostringstream experimentOut;
+    experimentOut << "# Virtual Lab Experiment\n\n";
+    experimentOut << "- case_id: `" << draft.caseId << "`\n";
+    experimentOut << "- latent_rejection: " << draft.latentRejection << "\n";
+    experimentOut << "- activation_trigger: " << draft.activationTriggerPrimary << "\n";
+    if (!draft.activationTriggerSecondary.empty()) {
+        experimentOut << "- activation_trigger_secondary: " << draft.activationTriggerSecondary << "\n";
+    }
+    experimentOut << "- reframing_strategy: " << draft.reframingStrategy << "\n";
+    experimentOut << "- exposure_design: " << draft.exposureDesign << "\n";
+    experimentOut << "- exposure_guardrail: " << draft.exposureGuardrail << "\n";
+    experimentOut << "- ethical_limit: " << draft.ethicalLimit << "\n";
+    experimentOut << "- evidence_count: 0\n";
+    experimentOut << "- average_confidence: 0\n";
+    experimentOut << "- hypothesis_supported: no\n";
+    experimentOut << "- decision: draft\n";
+    experimentOut << "- summary: Rodada criada manualmente e aguardando evidencias.\n";
+    writeTextFile(artifacts.experimentPath, experimentOut.str());
+
+    std::ostringstream evidenceOut;
+    evidenceOut << "# Virtual Lab Evidence Log\n\n";
+    evidenceOut << "_Sem evidencias registradas nesta rodada._\n";
+    writeTextFile(artifacts.evidencePath, evidenceOut.str());
+
+    writeTextFile(
+        artifacts.metadataPath,
+        renderRoundMetadataArtifact(scenario, layout.activeRoundRoot, labCase, draft.ethicalLimit));
+
     return artifacts;
 }
 
