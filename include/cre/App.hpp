@@ -39,6 +39,12 @@ struct ControlledExposure {
     std::string guardrail;
 };
 
+struct ScenarioDescriptor {
+    std::string id;
+    std::string label;
+    std::string description;
+};
+
 class Hypothesis {
 public:
     Hypothesis(std::string statement, double expectedImprovementPct);
@@ -114,6 +120,7 @@ struct RoundArtifacts {
     std::filesystem::path hypothesisPath;
     std::filesystem::path experimentPath;
     std::filesystem::path evidencePath;
+    std::filesystem::path metadataPath;
 };
 
 struct WorkspaceLayout {
@@ -126,10 +133,13 @@ struct WorkspaceLayout {
 };
 
 [[nodiscard]] std::string buildLabStatusMessage();
-[[nodiscard]] Experiment createVirtualLabCycleDemo();
-[[nodiscard]] VirtualLabReport runVirtualLabCycleDemo();
+[[nodiscard]] std::vector<ScenarioDescriptor> listVirtualLabScenarios();
+[[nodiscard]] Experiment createVirtualLabCycleDemo(std::string_view scenarioId = "cre-intro");
+[[nodiscard]] VirtualLabReport runVirtualLabCycleDemo(std::string_view scenarioId = "cre-intro");
 [[nodiscard]] std::string renderExperimentReport(const VirtualLabReport& report);
-[[nodiscard]] RoundArtifacts recordVirtualLabRound(const std::filesystem::path& outputDir);
+[[nodiscard]] RoundArtifacts recordVirtualLabRound(
+    const std::filesystem::path& outputDir,
+    std::string_view scenarioId = "cre-intro");
 [[nodiscard]] std::filesystem::path findProjectRoot(const std::filesystem::path& startDir);
 [[nodiscard]] WorkspaceLayout resolveWorkspaceLayout(
     const std::filesystem::path& startDir,
@@ -138,7 +148,8 @@ struct WorkspaceLayout {
 void ensureWorkspaceInitialized(const WorkspaceLayout& layout);
 [[nodiscard]] RoundArtifacts recordVirtualLabRoundInWorkspace(
     const WorkspaceLayout& layout,
-    bool mirrorLegacyOutput = false);
+    bool mirrorLegacyOutput = false,
+    std::string_view scenarioId = "cre-intro");
 [[nodiscard]] std::vector<std::filesystem::path> listWorkspaceRounds(const WorkspaceLayout& layout);
 [[nodiscard]] std::vector<std::filesystem::path> candidateRoundDirectories(const WorkspaceLayout& layout);
 

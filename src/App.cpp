@@ -15,6 +15,7 @@ namespace cre {
 namespace {
 
 constexpr std::string_view kDefaultRoundId = "lv-round-001";
+constexpr std::string_view kDefaultScenarioId = "cre-intro";
 
 std::optional<fs::path> tryResolveManifestRoot(const fs::path& startDir) {
     std::error_code ec;
@@ -45,6 +46,17 @@ std::string buildWorkspaceManifest() {
         + "  cycles: cycles\n"
         + "  logs: logs\n"
         + "  exports: exports\n";
+}
+
+ScenarioDescriptor findScenarioDescriptor(std::string_view scenarioId) {
+    for (const auto& scenario : listVirtualLabScenarios()) {
+        if (scenario.id == scenarioId) return scenario;
+    }
+    return {
+        std::string(scenarioId.empty() ? kDefaultScenarioId : scenarioId),
+        std::string(scenarioId.empty() ? kDefaultScenarioId : scenarioId),
+        "Cenario sem descriptor explicito."
+    };
 }
 
 std::string renderCaseArtifact(const LabCase& labCase) {
@@ -101,6 +113,31 @@ std::string renderEvidenceArtifact(const std::vector<Evidence>& evidences) {
     return out.str();
 }
 
+std::string renderRoundMetadataArtifact(const ScenarioDescriptor& scenario,
+                                        const fs::path& outputDir,
+                                        const LabCase& labCase) {
+    std::ostringstream out;
+    out << "# Virtual Lab Round Metadata\n\n";
+    out << "- scenario_id: " << scenario.id << "\n";
+    out << "- scenario_label: " << scenario.label << "\n";
+    out << "- scenario_description: " << scenario.description << "\n";
+    out << "- round_id: " << outputDir.filename().string() << "\n";
+    out << "- case_id: `" << labCase.id << "`\n";
+    out << "- root_dir: " << outputDir.string() << "\n";
+    return out.str();
+}
+
+std::string artifactIdFromCaseId(const std::string& caseId, std::string_view targetToken) {
+    std::string id = caseId;
+    const std::string caseToken = "CASE";
+    const std::size_t pos = id.find(caseToken);
+    if (pos != std::string::npos) {
+        id.replace(pos, caseToken.size(), targetToken);
+        return id;
+    }
+    return std::string(targetToken) + "-" + caseId;
+}
+
 void writeTextFile(const fs::path& path, const std::string& content) {
     std::ofstream out(path);
     if (!out.is_open()) {
@@ -125,7 +162,111 @@ void ensureFileIfMissing(const fs::path& path, const std::string& content) {
     writeTextFile(path, content);
 }
 
-Experiment buildVirtualLabExperiment() {
+Experiment buildVirtualLabExperiment(std::string_view scenarioId) {
+    if (scenarioId == "education-inclusion") {
+        LabCase labCase{
+            .id = "LV-CASE-201",
+            .title = "Apresentar inclusao como melhoria de experiencia, nao como obrigacao",
+            .context = "Contexto educacional com resistencia inicial a temas percebidos como normativos ou pesados.",
+            .automaticRejection = "Isso vai ser mais uma palestra obrigatoria e cansativa.",
+            .trigger = "Uso imediato do termo inclusao em tom institucional e normativo."
+        };
+        RejectionSignal rejection{
+            .heuristic = "inclusao = obrigacao chata",
+            .observedPhrase = "Isso vai ser mais uma palestra obrigatoria e cansativa."
+        };
+        ActivationTrigger trigger{
+            .primary = "Uso imediato do termo inclusao em tom institucional e normativo.",
+            .secondary = "Abertura sem caso concreto de friccao vivida no cotidiano."
+        };
+        Hypothesis hypothesis{
+            "Se o tema entrar como melhoria de experiencia compartilhada e resolucao de friccoes concretas, entao o engajamento aumenta sem resistencia inicial.",
+            22.0
+        };
+        ReframingStrategy reframing{
+            .title = "Experiencia primeiro, rotulo depois",
+            .entryShift = "Comecar por situacoes reais de atrito e colaboracao antes de nomear o tema como inclusao.",
+            .expectedPerceptionShift = "Trocar defesa normativa por participacao pratica."
+        };
+        ControlledExposure exposure{
+            .design = "Abrir com caso vivido em sala e coleta de solucoes antes da nomeacao do tema.",
+            .steps = {
+                "Apresentar um caso curto de friccao em ambiente de aprendizagem.",
+                "Pedir solucoes praticas ao grupo.",
+                "Conectar as solucoes ao conceito de inclusao so depois."
+            },
+            .guardrail = "Nao mascarar o tema; apenas mudar o ponto de entrada."
+        };
+
+        Experiment experiment{labCase, rejection, trigger, hypothesis, reframing, exposure};
+        experiment.addEvidence({
+            .id = "LV-EVD-201",
+            .source = "piloto-sala-aula-v1",
+            .observation = "Os participantes propuseram solucoes concretas antes de questionar o tema.",
+            .confidence = 0.81
+        });
+        experiment.addEvidence({
+            .id = "LV-EVD-202",
+            .source = "feedback-qualitativo-v1",
+            .observation = "A percepcao mudou de obrigacao institucional para melhoria coletiva de experiencia.",
+            .confidence = 0.84
+        });
+        experiment.execute();
+        return experiment;
+    }
+
+    if (scenarioId == "strata-entry") {
+        LabCase labCase{
+            .id = "LV-CASE-301",
+            .title = "Introduzir o STRATA por caso visivel antes da arquitetura completa",
+            .context = "Projeto complexo com risco de rejeicao quando a apresentacao comeca pela estrutura total do sistema.",
+            .automaticRejection = "Isso e complexo demais para eu entender agora.",
+            .trigger = "Apresentacao do sistema completo antes de um caso simples de uso."
+        };
+        RejectionSignal rejection{
+            .heuristic = "complexidade aparente = melhor nao entrar",
+            .observedPhrase = "Isso e complexo demais para eu entender agora."
+        };
+        ActivationTrigger trigger{
+            .primary = "Apresentacao do sistema completo antes de um caso simples de uso.",
+            .secondary = "Excesso de linguagem estrutural na primeira exposicao."
+        };
+        Hypothesis hypothesis{
+            "Se o STRATA entrar por um caso visual concreto de leitura de situacao e so depois mostrar a arquitetura, entao a curiosidade cresce e a resistencia cai.",
+            18.0
+        };
+        ReframingStrategy reframing{
+            .title = "Caso visual antes do mapa completo",
+            .entryShift = "Entrar pelo que o sistema ajuda a enxergar antes de explicar todos os modulos.",
+            .expectedPerceptionShift = "Trocar intimidacao arquitetural por curiosidade orientada a uso."
+        };
+        ControlledExposure exposure{
+            .design = "Visualizacao de um caso simples seguida de decomposicao progressiva do sistema.",
+            .steps = {
+                "Mostrar uma leitura visual simples produzida pelo sistema.",
+                "Perguntar o que a pessoa conseguiu perceber.",
+                "Apresentar a arquitetura em camadas depois do caso."
+            },
+            .guardrail = "Nao prometer simplicidade falsa; a progressao precisa continuar honesta."
+        };
+
+        Experiment experiment{labCase, rejection, trigger, hypothesis, reframing, exposure};
+        experiment.addEvidence({
+            .id = "LV-EVD-301",
+            .source = "piloto-strata-v1",
+            .observation = "A conversa permaneceu no valor percebido antes de migrar para a arquitetura.",
+            .confidence = 0.78
+        });
+        experiment.addEvidence({
+            .id = "LV-EVD-302",
+            .source = "observacao-sessao-v1",
+            .observation = "A arquitetura passou a ser recebida como explicacao de algo util, nao como barreira inicial.",
+            .confidence = 0.8
+        });
+        experiment.execute();
+        return experiment;
+    }
+
     LabCase labCase{
         .id = "LV-CASE-101",
         .title = "Introduzir o CRE sem ativar rejeicao por complexidade",
@@ -268,12 +409,32 @@ std::string buildLabStatusMessage() {
     return "CRE Laboratorio Virtual pronto";
 }
 
-Experiment createVirtualLabCycleDemo() {
-    return buildVirtualLabExperiment();
+std::vector<ScenarioDescriptor> listVirtualLabScenarios() {
+    return {
+        {
+            "cre-intro",
+            "CRE Intro",
+            "Entrada do CRE por demonstracao concreta antes da teoria completa."
+        },
+        {
+            "education-inclusion",
+            "Educacao Inclusiva",
+            "Reframing de inclusao como melhoria de experiencia e nao obrigacao normativa."
+        },
+        {
+            "strata-entry",
+            "STRATA Entry",
+            "Entrada do STRATA por caso visual antes da arquitetura completa."
+        }
+    };
 }
 
-PerceptionShiftReport runVirtualLabCycleDemo() {
-    const Experiment experiment = createVirtualLabCycleDemo();
+Experiment createVirtualLabCycleDemo(std::string_view scenarioId) {
+    return buildVirtualLabExperiment(scenarioId.empty() ? kDefaultScenarioId : scenarioId);
+}
+
+PerceptionShiftReport runVirtualLabCycleDemo(std::string_view scenarioId) {
+    const Experiment experiment = createVirtualLabCycleDemo(scenarioId);
 
     PerceptionShiftReport report;
     report.caseId = experiment.labCase().id;
@@ -308,9 +469,10 @@ std::string renderExperimentReport(const PerceptionShiftReport& report) {
     return out.str();
 }
 
-RoundArtifacts recordVirtualLabRound(const fs::path& outputDir) {
-    const Experiment experiment = createVirtualLabCycleDemo();
-    const VirtualLabReport report = runVirtualLabCycleDemo();
+RoundArtifacts recordVirtualLabRound(const fs::path& outputDir, std::string_view scenarioId) {
+    const Experiment experiment = createVirtualLabCycleDemo(scenarioId);
+    const VirtualLabReport report = runVirtualLabCycleDemo(scenarioId);
+    const ScenarioDescriptor scenario = findScenarioDescriptor(scenarioId);
 
     std::error_code ec;
     fs::create_directories(outputDir, ec);
@@ -319,10 +481,11 @@ RoundArtifacts recordVirtualLabRound(const fs::path& outputDir) {
     }
 
     RoundArtifacts artifacts{
-        .casePath = outputDir / "LV-CASE-101.md",
-        .hypothesisPath = outputDir / "LV-HYP-101.md",
-        .experimentPath = outputDir / "LV-EXP-101.md",
-        .evidencePath = outputDir / "LV-EVD-LOG-101.md"
+        .casePath = outputDir / (experiment.labCase().id + ".md"),
+        .hypothesisPath = outputDir / (artifactIdFromCaseId(experiment.labCase().id, "HYP") + ".md"),
+        .experimentPath = outputDir / (artifactIdFromCaseId(experiment.labCase().id, "EXP") + ".md"),
+        .evidencePath = outputDir / (artifactIdFromCaseId(experiment.labCase().id, "EVD-LOG") + ".md"),
+        .metadataPath = outputDir / "LV-ROUND-META.md"
     };
 
     writeTextFile(artifacts.casePath, renderCaseArtifact(experiment.labCase()));
@@ -330,6 +493,7 @@ RoundArtifacts recordVirtualLabRound(const fs::path& outputDir) {
                   renderHypothesisArtifact(experiment.labCase().id, experiment.hypothesis(), experiment.reframing()));
     writeTextFile(artifacts.experimentPath, renderExperimentArtifact(report));
     writeTextFile(artifacts.evidencePath, renderEvidenceArtifact(experiment.evidences()));
+    writeTextFile(artifacts.metadataPath, renderRoundMetadataArtifact(scenario, outputDir, experiment.labCase()));
 
     return artifacts;
 }
@@ -394,11 +558,13 @@ void ensureWorkspaceInitialized(const WorkspaceLayout& layout) {
     ensureFileIfMissing(layout.manifestPath, buildWorkspaceManifest());
 }
 
-RoundArtifacts recordVirtualLabRoundInWorkspace(const WorkspaceLayout& layout, bool mirrorLegacyOutput) {
+RoundArtifacts recordVirtualLabRoundInWorkspace(const WorkspaceLayout& layout,
+                                                bool mirrorLegacyOutput,
+                                                std::string_view scenarioId) {
     ensureWorkspaceInitialized(layout);
-    const RoundArtifacts artifacts = recordVirtualLabRound(layout.activeRoundRoot);
+    const RoundArtifacts artifacts = recordVirtualLabRound(layout.activeRoundRoot, scenarioId);
     if (mirrorLegacyOutput) {
-        const RoundArtifacts legacyArtifacts = recordVirtualLabRound(layout.legacyRoundRoot);
+        const RoundArtifacts legacyArtifacts = recordVirtualLabRound(layout.legacyRoundRoot, scenarioId);
         (void)legacyArtifacts;
     }
     return artifacts;

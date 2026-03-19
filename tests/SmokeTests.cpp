@@ -26,6 +26,9 @@ int main() {
     require(cre::buildLabStatusMessage() == "CRE Laboratorio Virtual pronto",
             "status message should reflect CRE virtual lab scope");
 
+    const auto scenarios = cre::listVirtualLabScenarios();
+    require(scenarios.size() >= 3, "CRE should expose multiple built-in scenarios");
+
     const cre::VirtualLabReport report = cre::runVirtualLabCycleDemo();
     require(report.caseId == "LV-CASE-101", "case id should be stable");
     require(report.latentRejection == "complexidade alta = nao vale testar",
@@ -42,15 +45,26 @@ int main() {
     require(approxEqual(report.averageConfidence, 0.79), "average confidence should match demo data");
     require(!report.summary.empty(), "summary should be generated");
 
+    const cre::VirtualLabReport educationReport = cre::runVirtualLabCycleDemo("education-inclusion");
+    require(educationReport.caseId == "LV-CASE-201", "education scenario should be available");
+    require(educationReport.hypothesisSupported, "education scenario should be supported");
+
+    const cre::VirtualLabReport strataReport = cre::runVirtualLabCycleDemo("strata-entry");
+    require(strataReport.caseId == "LV-CASE-301", "STRATA scenario should be available");
+    require(strataReport.hypothesisSupported, "STRATA scenario should be supported");
+
     const fs::path tempDir = fs::temp_directory_path() / "cre-lv-round-output";
     std::error_code ec;
     fs::remove_all(tempDir, ec);
-    const cre::RoundArtifacts artifacts = cre::recordVirtualLabRound(tempDir);
+    const cre::RoundArtifacts artifacts = cre::recordVirtualLabRound(tempDir, "education-inclusion");
 
     require(fs::exists(artifacts.casePath), "case artifact should be written");
     require(fs::exists(artifacts.hypothesisPath), "hypothesis artifact should be written");
     require(fs::exists(artifacts.experimentPath), "experiment artifact should be written");
     require(fs::exists(artifacts.evidencePath), "evidence artifact should be written");
+    require(fs::exists(artifacts.metadataPath), "round metadata artifact should be written");
+    require(artifacts.casePath.filename() == "LV-CASE-201.md", "case artifact filename should match scenario case id");
+    require(artifacts.hypothesisPath.filename() == "LV-HYP-201.md", "hypothesis artifact filename should match scenario case id");
 
     const fs::path projectRoot = cre::findProjectRoot(fs::current_path());
     require(fs::exists(projectRoot / "README.md"), "project root should resolve from nested path");
@@ -70,11 +84,13 @@ int main() {
     require(fs::exists(workspaceArtifacts.hypothesisPath), "workspace hypothesis artifact should be written");
     require(fs::exists(workspaceArtifacts.experimentPath), "workspace experiment artifact should be written");
     require(fs::exists(workspaceArtifacts.evidencePath), "workspace evidence artifact should be written");
+    require(fs::exists(workspaceArtifacts.metadataPath), "workspace metadata artifact should be written");
 
     const cre::WorkspaceLayout laterLayout =
         cre::resolveWorkspaceLayout(projectRoot, tempWorkspace, "lv-round-888");
     const cre::RoundArtifacts laterArtifacts = cre::recordVirtualLabRoundInWorkspace(laterLayout);
     require(fs::exists(laterArtifacts.casePath), "later workspace case artifact should be written");
+    require(fs::exists(laterArtifacts.metadataPath), "later workspace metadata artifact should be written");
 
     const auto candidateDirs = cre::candidateRoundDirectories(layout);
     require(!candidateDirs.empty(), "workspace should expose candidate round directories");

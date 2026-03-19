@@ -34,6 +34,7 @@ O primeiro ambiente operacional do projeto é o `Laboratório Virtual`, onde cas
   - ou `./build/cre gui`
 - Rodar a demonstração textual do Laboratório Virtual:
   - `./build/cre demo`
+  - `./build/cre demo --scenario education-inclusion`
 - Abrir ajuda documental direto na GUI:
   - `F1` abre a aba `Documentos`
   - `Ctrl+1` `README`
@@ -52,12 +53,23 @@ O primeiro ambiente operacional do projeto é o `Laboratório Virtual`, onde cas
   - `./build/cre record-round`
   - `./build/cre record-round --round-id lv-round-002`
   - `./build/cre record-round --workspace ./workspace`
+  - `./build/cre record-round --scenario strata-entry`
+
+Cenários embutidos:
+- `cre-intro`
+- `education-inclusion`
+- `strata-entry`
+
+Casos documentados:
+- `examples/cre_experiment_education_inclusion.md`
+- `examples/cre_experiment_strata_entry.md`
 
 Esse comando gera arquivos versionáveis de:
 - caso
 - hipótese
 - experimento
 - evidência
+- manifesto da rodada
 
 ## Workspace
 O `CRE` agora separa melhor método e operação:

@@ -74,6 +74,7 @@ if(cre_ENABLE_GUI)
     target_link_libraries(cre PRIVATE cre_gui)
 endif()
 target_include_directories(cre PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_definitions(cre PRIVATE CRE_ENABLE_GUI=$<BOOL:${cre_ENABLE_GUI}>)
 configure_project_target(cre)
 
 add_executable(cre_tests

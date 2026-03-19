@@ -35,6 +35,10 @@ struct ArtifactEvidenceEntry {
 struct ArtifactRoundData {
     bool loaded{false};
     fs::path rootDir;
+    std::string scenarioId;
+    std::string scenarioLabel;
+    std::string scenarioDescription;
+    std::string roundId;
     std::string caseId;
     std::string caseTitle;
     std::string caseContext;
@@ -58,6 +62,7 @@ struct ArtifactRoundData {
     std::string hypothesisMarkdown;
     std::string experimentMarkdown;
     std::string evidenceMarkdown;
+    std::string metadataMarkdown;
 };
 
 struct ProjectDocument {
@@ -199,25 +204,42 @@ std::vector<ArtifactEvidenceEntry> parseEvidenceEntries(const std::string& markd
     return entries;
 }
 
-std::optional<ArtifactRoundData> loadArtifactRoundData(const fs::path& rootDir) {
-    const fs::path casePath = rootDir / "LV-CASE-101.md";
-    const fs::path hypothesisPath = rootDir / "LV-HYP-101.md";
-    const fs::path experimentPath = rootDir / "LV-EXP-101.md";
-    const fs::path evidencePath = rootDir / "LV-EVD-LOG-101.md";
+std::optional<fs::path> findArtifactByPrefix(const fs::path& rootDir, const std::string& prefix) {
+    std::error_code ec;
+    if (!fs::exists(rootDir, ec) || !fs::is_directory(rootDir, ec)) return std::nullopt;
+    for (const auto& entry : fs::directory_iterator(rootDir, fs::directory_options::skip_permission_denied, ec)) {
+        if (!entry.is_regular_file(ec)) continue;
+        const std::string filename = entry.path().filename().string();
+        if (filename.rfind(prefix, 0) == 0 && entry.path().extension() == ".md") return entry.path();
+    }
+    return std::nullopt;
+}
 
-    if (!fs::exists(casePath) || !fs::exists(hypothesisPath) ||
-        !fs::exists(experimentPath) || !fs::exists(evidencePath)) {
+std::optional<ArtifactRoundData> loadArtifactRoundData(const fs::path& rootDir) {
+    const auto casePath = findArtifactByPrefix(rootDir, "LV-CASE-");
+    const auto hypothesisPath = findArtifactByPrefix(rootDir, "LV-HYP-");
+    const auto experimentPath = findArtifactByPrefix(rootDir, "LV-EXP-");
+    const auto evidencePath = findArtifactByPrefix(rootDir, "LV-EVD-LOG-");
+    const fs::path metadataPath = rootDir / "LV-ROUND-META.md";
+
+    if (!casePath.has_value() || !hypothesisPath.has_value() ||
+        !experimentPath.has_value() || !evidencePath.has_value()) {
         return std::nullopt;
     }
 
     ArtifactRoundData data;
     data.loaded = true;
     data.rootDir = rootDir;
-    data.caseMarkdown = readTextFile(casePath);
-    data.hypothesisMarkdown = readTextFile(hypothesisPath);
-    data.experimentMarkdown = readTextFile(experimentPath);
-    data.evidenceMarkdown = readTextFile(evidencePath);
+    data.caseMarkdown = readTextFile(*casePath);
+    data.hypothesisMarkdown = readTextFile(*hypothesisPath);
+    data.experimentMarkdown = readTextFile(*experimentPath);
+    data.evidenceMarkdown = readTextFile(*evidencePath);
+    data.metadataMarkdown = readTextFile(metadataPath);
 
+    data.scenarioId = extractBulletValue(data.metadataMarkdown, "scenario_id");
+    data.scenarioLabel = extractBulletValue(data.metadataMarkdown, "scenario_label");
+    data.scenarioDescription = extractBulletValue(data.metadataMarkdown, "scenario_description");
+    data.roundId = extractBulletValue(data.metadataMarkdown, "round_id");
     data.caseId = extractBulletValue(data.caseMarkdown, "case_id");
     data.caseTitle = extractBulletValue(data.caseMarkdown, "title");
     data.caseContext = extractBulletValue(data.caseMarkdown, "context");
@@ -259,6 +281,7 @@ void renderTopBar(const ArtifactRoundData& data) {
     ImGui::Text("Rodada carregada | Caso: %s | Evidencias: %d", data.caseId.c_str(),
                 static_cast<int>(data.evidences.size()));
     ImGui::TextDisabled("Hipotese: %s", data.hypothesisStatement.c_str());
+    if (!data.scenarioLabel.empty()) ImGui::TextDisabled("Cenario: %s", data.scenarioLabel.c_str());
     ImGui::TextDisabled("Fonte: %s", data.rootDir.string().c_str());
     ImGui::Separator();
 }
@@ -340,6 +363,8 @@ void renderDecisaoTab(const VirtualLabReport& report) {
 void renderRodadaTab(const ArtifactRoundData& data) {
     ImGui::TextWrapped("%s", buildLabStatusMessage().c_str());
     ImGui::Spacing();
+    if (!data.roundId.empty()) ImGui::BulletText("Rodada: %s", data.roundId.c_str());
+    if (!data.scenarioLabel.empty()) ImGui::BulletText("Cenario: %s", data.scenarioLabel.c_str());
     ImGui::BulletText("Caso ativo: %s", data.caseTitle.c_str());
     ImGui::BulletText("Hipotese ativa: %s", data.hypothesisStatement.c_str());
     ImGui::BulletText("Evidencias registradas: %s", data.evidenceCount.c_str());
@@ -490,8 +515,10 @@ int runGuiApp() {
     ImGui_ImplSDL2_InitForOpenGL(window, glContext);
     ImGui_ImplOpenGL3_Init("#version 330");
 
-    const Experiment experiment = createVirtualLabCycleDemo();
-    const VirtualLabReport report = runVirtualLabCycleDemo();
+    const std::vector<ScenarioDescriptor> scenarios = listVirtualLabScenarios();
+    std::string currentScenarioId = scenarios.empty() ? "cre-intro" : scenarios.front().id;
+    Experiment experiment = createVirtualLabCycleDemo(currentScenarioId);
+    VirtualLabReport report = runVirtualLabCycleDemo(currentScenarioId);
     std::optional<fs::path> explicitWorkspaceRoot;
     WorkspaceLayout workspace = resolveWorkspaceLayout(fs::current_path());
     ensureWorkspaceInitialized(workspace);
@@ -507,6 +534,25 @@ int runGuiApp() {
     std::string statusMessage = "Workspace pronto.";
     copyStringToBuffer(workspace.workspaceRoot.string(), workspaceInput.data(), workspaceInput.size());
 
+    const auto selectedScenarioLabel = [&]() -> std::string {
+        for (const auto& scenario : scenarios) {
+            if (scenario.id == currentScenarioId) return scenario.label;
+        }
+        return currentScenarioId;
+    };
+
+    const auto selectedScenarioDescription = [&]() -> std::string {
+        for (const auto& scenario : scenarios) {
+            if (scenario.id == currentScenarioId) return scenario.description;
+        }
+        return {};
+    };
+
+    const auto reloadScenario = [&]() {
+        experiment = createVirtualLabCycleDemo(currentScenarioId);
+        report = runVirtualLabCycleDemo(currentScenarioId);
+    };
+
     const auto reloadWorkspace = [&]() {
         workspace = resolveWorkspaceLayout(fs::current_path(), explicitWorkspaceRoot, currentRoundId);
         ensureWorkspaceInitialized(workspace);
@@ -514,8 +560,10 @@ int runGuiApp() {
         documents = loadProjectDocuments(projectRoot);
         artifactData = loadArtifactRoundData(candidateRoundDirectories(workspace));
         roundIds = listWorkspaceRoundIds(workspace);
+        reloadScenario();
         copyStringToBuffer(workspace.workspaceRoot.string(), workspaceInput.data(), workspaceInput.size());
-        statusMessage = "Workspace ativo: " + workspace.workspaceRoot.string() + " | rodada: " + currentRoundId;
+        statusMessage = "Workspace ativo: " + workspace.workspaceRoot.string() + " | rodada: " + currentRoundId
+                      + " | cenario: " + currentScenarioId;
     };
 
     bool running = true;
@@ -630,6 +678,20 @@ int runGuiApp() {
             documents = loadProjectDocuments(projectRoot);
         }
         ImGui::SameLine();
+        ImGui::SetNextItemWidth(190.f);
+        if (ImGui::BeginCombo("Cenario", selectedScenarioLabel().c_str())) {
+            for (const auto& scenario : scenarios) {
+                const bool selected = (scenario.id == currentScenarioId);
+                if (ImGui::Selectable(scenario.label.c_str(), selected)) {
+                    currentScenarioId = scenario.id;
+                    reloadScenario();
+                    statusMessage = "Cenario ativo: " + scenario.label;
+                }
+                if (selected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
         ImGui::SetNextItemWidth(180.f);
         if (ImGui::BeginCombo("Rodada", currentRoundId.c_str())) {
             for (const auto& roundId : roundIds) {
@@ -646,6 +708,9 @@ int runGuiApp() {
         ImGui::TextDisabled("Workspace: %s", workspace.workspaceRoot.string().c_str());
         ImGui::SameLine();
         ImGui::TextDisabled("| %s", statusMessage.c_str());
+        if (!selectedScenarioDescription().empty()) {
+            ImGui::TextDisabled("Cenario: %s", selectedScenarioDescription().c_str());
+        }
         ImGui::Separator();
 
         if (ImGui::BeginTabBar("LVTabs")) {
@@ -691,10 +756,11 @@ int runGuiApp() {
         ImGui::Separator();
         if (ImGui::Button("Registrar Rodada Demo no Workspace")) {
             try {
-                const RoundArtifacts artifacts = recordVirtualLabRoundInWorkspace(workspace);
+                const RoundArtifacts artifacts = recordVirtualLabRoundInWorkspace(workspace, false, currentScenarioId);
                 (void)artifacts;
                 roundIds = listWorkspaceRoundIds(workspace);
                 artifactData = loadArtifactRoundData(candidateRoundDirectories(workspace));
+                statusMessage = "Rodada registrada para o cenario: " + selectedScenarioLabel();
             } catch (const std::exception& ex) {
                 std::fprintf(stderr, "recordVirtualLabRound failed: %s\n", ex.what());
             }
