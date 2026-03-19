@@ -2,7 +2,9 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace cre {
@@ -71,10 +73,29 @@ struct RoundArtifacts {
     std::filesystem::path evidencePath;
 };
 
+struct WorkspaceLayout {
+    std::filesystem::path projectRoot;
+    std::filesystem::path workspaceRoot;
+    std::filesystem::path manifestPath;
+    std::filesystem::path roundsRoot;
+    std::filesystem::path activeRoundRoot;
+    std::filesystem::path legacyRoundRoot;
+};
+
 [[nodiscard]] std::string buildLabStatusMessage();
 [[nodiscard]] Experiment createVirtualLabCycleDemo();
 [[nodiscard]] VirtualLabReport runVirtualLabCycleDemo();
 [[nodiscard]] std::string renderExperimentReport(const VirtualLabReport& report);
 [[nodiscard]] RoundArtifacts recordVirtualLabRound(const std::filesystem::path& outputDir);
+[[nodiscard]] std::filesystem::path findProjectRoot(const std::filesystem::path& startDir);
+[[nodiscard]] WorkspaceLayout resolveWorkspaceLayout(
+    const std::filesystem::path& startDir,
+    const std::optional<std::filesystem::path>& explicitWorkspaceRoot = std::nullopt,
+    std::string_view roundId = "lv-round-001");
+void ensureWorkspaceInitialized(const WorkspaceLayout& layout);
+[[nodiscard]] RoundArtifacts recordVirtualLabRoundInWorkspace(
+    const WorkspaceLayout& layout,
+    bool mirrorLegacyOutput = false);
+[[nodiscard]] std::vector<std::filesystem::path> candidateRoundDirectories(const WorkspaceLayout& layout);
 
 } // namespace cre

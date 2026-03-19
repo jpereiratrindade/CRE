@@ -1,14 +1,50 @@
 #include "cre/App.hpp"
 
+#include <cstdlib>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 #include <utility>
 
 namespace fs = std::filesystem;
 
 namespace cre {
 namespace {
+
+constexpr std::string_view kDefaultRoundId = "lv-round-001";
+
+std::optional<fs::path> tryResolveManifestRoot(const fs::path& startDir) {
+    std::error_code ec;
+    fs::path current = fs::absolute(startDir, ec);
+    if (ec) return std::nullopt;
+
+    while (!current.empty()) {
+        if (fs::exists(current / "cre.yaml")) return current;
+        const fs::path parent = current.parent_path();
+        if (parent == current) break;
+        current = parent;
+    }
+    return std::nullopt;
+}
+
+std::string buildWorkspaceManifest() {
+    return std::string{}
+        + "workspace_id: cre-default\n"
+        + "version: 1\n"
+        + "defaults:\n"
+        + "  active_round: " + std::string(kDefaultRoundId) + "\n"
+        + "paths:\n"
+        + "  rounds: rounds\n"
+        + "  cases: cases\n"
+        + "  hypotheses: hypotheses\n"
+        + "  experiments: experiments\n"
+        + "  evidences: evidences\n"
+        + "  cycles: cycles\n"
+        + "  logs: logs\n"
+        + "  exports: exports\n";
+}
 
 std::string renderCaseArtifact(const LabCase& labCase) {
     std::ostringstream out;
@@ -63,6 +99,19 @@ void writeTextFile(const fs::path& path, const std::string& content) {
     if (!out.good()) {
         throw std::runtime_error("failed to write output file: " + path.string());
     }
+}
+
+void ensureDirectory(const fs::path& path) {
+    std::error_code ec;
+    fs::create_directories(path, ec);
+    if (ec) {
+        throw std::runtime_error("failed to create directory: " + path.string());
+    }
+}
+
+void ensureFileIfMissing(const fs::path& path, const std::string& content) {
+    if (fs::exists(path)) return;
+    writeTextFile(path, content);
 }
 
 Experiment buildVirtualLabExperiment() {
@@ -213,6 +262,85 @@ RoundArtifacts recordVirtualLabRound(const fs::path& outputDir) {
     writeTextFile(artifacts.evidencePath, renderEvidenceArtifact(experiment.evidences()));
 
     return artifacts;
+}
+
+fs::path findProjectRoot(const fs::path& startDir) {
+    std::error_code ec;
+    fs::path current = fs::absolute(startDir, ec);
+    if (ec) throw std::runtime_error("failed to resolve project root from start directory");
+
+    while (!current.empty()) {
+        if (fs::exists(current / "README.md") && fs::exists(current / "ddd" / "LaboratorioVirtual.md")) {
+            return current;
+        }
+        const fs::path parent = current.parent_path();
+        if (parent == current) break;
+        current = parent;
+    }
+
+    throw std::runtime_error("failed to locate CRE project root");
+}
+
+WorkspaceLayout resolveWorkspaceLayout(const fs::path& startDir,
+                                       const std::optional<fs::path>& explicitWorkspaceRoot,
+                                       std::string_view roundId) {
+    const fs::path projectRoot = findProjectRoot(startDir);
+
+    fs::path workspaceRoot;
+    if (explicitWorkspaceRoot.has_value() && !explicitWorkspaceRoot->empty()) {
+        workspaceRoot = fs::absolute(*explicitWorkspaceRoot);
+    } else if (const char* envWorkspace = std::getenv("CRE_WORKSPACE");
+               envWorkspace != nullptr && std::string_view(envWorkspace).size() > 0) {
+        workspaceRoot = fs::absolute(envWorkspace);
+    } else if (const auto manifestRoot = tryResolveManifestRoot(startDir)) {
+        workspaceRoot = *manifestRoot;
+    } else {
+        workspaceRoot = projectRoot / "workspace";
+    }
+
+    const std::string resolvedRoundId = roundId.empty() ? std::string(kDefaultRoundId) : std::string(roundId);
+    return WorkspaceLayout{
+        .projectRoot = projectRoot,
+        .workspaceRoot = workspaceRoot,
+        .manifestPath = workspaceRoot / "cre.yaml",
+        .roundsRoot = workspaceRoot / "rounds",
+        .activeRoundRoot = workspaceRoot / "rounds" / resolvedRoundId,
+        .legacyRoundRoot = projectRoot / "output" / resolvedRoundId
+    };
+}
+
+void ensureWorkspaceInitialized(const WorkspaceLayout& layout) {
+    ensureDirectory(layout.workspaceRoot);
+    ensureDirectory(layout.roundsRoot);
+    ensureDirectory(layout.workspaceRoot / "cases");
+    ensureDirectory(layout.workspaceRoot / "hypotheses");
+    ensureDirectory(layout.workspaceRoot / "experiments");
+    ensureDirectory(layout.workspaceRoot / "evidences");
+    ensureDirectory(layout.workspaceRoot / "cycles");
+    ensureDirectory(layout.workspaceRoot / "logs");
+    ensureDirectory(layout.workspaceRoot / "exports");
+    ensureDirectory(layout.workspaceRoot / ".cre");
+    ensureDirectory(layout.workspaceRoot / ".cre" / "cache");
+    ensureFileIfMissing(layout.manifestPath, buildWorkspaceManifest());
+}
+
+RoundArtifacts recordVirtualLabRoundInWorkspace(const WorkspaceLayout& layout, bool mirrorLegacyOutput) {
+    ensureWorkspaceInitialized(layout);
+    const RoundArtifacts artifacts = recordVirtualLabRound(layout.activeRoundRoot);
+    if (mirrorLegacyOutput) {
+        const RoundArtifacts legacyArtifacts = recordVirtualLabRound(layout.legacyRoundRoot);
+        (void)legacyArtifacts;
+    }
+    return artifacts;
+}
+
+std::vector<fs::path> candidateRoundDirectories(const WorkspaceLayout& layout) {
+    std::vector<fs::path> candidates;
+    candidates.push_back(layout.activeRoundRoot);
+    if (layout.legacyRoundRoot != layout.activeRoundRoot) {
+        candidates.push_back(layout.legacyRoundRoot);
+    }
+    return candidates;
 }
 
 } // namespace cre

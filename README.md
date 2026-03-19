@@ -33,14 +33,50 @@ O primeiro ambiente operacional do projeto é o `Laboratório Virtual`, onde cas
   - ou `./build/cre demo`
 - Abrir o shell inicial em SDL2 + Dear ImGui:
   - `./build/cre gui`
+- Abrir ajuda documental direto na GUI:
+  - `F1` abre a aba `Documentos`
+  - `Ctrl+1` `README`
+  - `Ctrl+2` `Laboratório Virtual`
+  - `Ctrl+3` `CRE Core`
+  - `Ctrl+4` `ADR Fundador`
+  - `Ctrl+5` `Ética`
 - Registrar uma rodada inicial em artefatos Markdown:
-  - `./build/cre record-round ./output/lv-round-001`
+  - `./build/cre record-round`
+  - `./build/cre record-round --round-id lv-round-002`
+  - `./build/cre record-round --workspace ./workspace`
 
 Esse comando gera arquivos versionáveis de:
 - caso
 - hipótese
 - experimento
 - evidência
+
+## Workspace
+O `CRE` agora separa melhor método e operação:
+- o repositório guarda código, docs, ADRs, DDD e políticas
+- o `workspace/` guarda rodadas e artefatos operacionais do `Laboratório Virtual`
+
+Resolução padrão do workspace:
+1. `--workspace <path>`
+2. variável de ambiente `CRE_WORKSPACE`
+3. raiz contendo `cre.yaml`
+4. fallback para `./workspace`
+
+Estrutura mínima:
+- `workspace/cre.yaml`
+- `workspace/rounds/<round-id>/`
+- `workspace/cases/`
+- `workspace/hypotheses/`
+- `workspace/experiments/`
+- `workspace/evidences/`
+- `workspace/cycles/`
+- `workspace/logs/`
+- `workspace/exports/`
+- `workspace/.cre/state.json`
+
+Compatibilidade:
+- a GUI e o core priorizam `workspace/rounds/<round-id>`
+- se não houver artefatos lá, ainda aceitam o legado `output/<round-id>`
 
 ## Estrutura
 - `src/`: implementação
@@ -65,6 +101,16 @@ Esse comando gera arquivos versionáveis de:
 - `CRE`: motor conceitual e operacional
 - `Laboratório Virtual`: ambiente de simulação, teste e validação de reframing contextual
 
+## Direção Estratégica
+O `CRE` não deve existir apenas como conceito paralelo ao `Laboratório Virtual`.
+A direção do projeto é fazer do `CRE` o princípio organizador do sistema, enquanto o `Laboratório Virtual` atua como executor experimental desse motor.
+
+Em termos práticos, isso significa evoluir de:
+- `Hipótese -> Experimento -> Evidência`
+
+para um ciclo explicitamente orientado a reframing:
+- `Rejeição -> Gatilho -> Reframing -> Exposição -> Evidência -> Decisão`
+
 ## Referência do LV
 A base oficial do `Laboratório Virtual` está em `ddd/LaboratorioVirtual.md` e define:
 - entidades-base: `Caso`, `Hipótese`, `Experimento`, `Evidência`, `Decisão`
@@ -87,5 +133,10 @@ A base oficial do `Laboratório Virtual` está em `ddd/LaboratorioVirtual.md` e 
 - O laboratório existe para evidenciar, não para maquiar
 - Toda conclusão relevante precisa de hipótese, experimento e evidência
 
+## Licença
+Este projeto é distribuído sob a licença `GNU GPL v3.0 or later`.
+O texto integral está em [LICENSE](/run/media/jpereiratrindade/labeco10T/dev/cpp/cre/LICENSE).
+
 ## Próximo Passo Natural
 - transformar o Laboratório Virtual em um módulo mais operacional com casos, hipóteses, experimentos e evidências versionadas
+- formalizar um `CRE Cycle` como pipeline dominante do sistema

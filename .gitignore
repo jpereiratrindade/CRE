@@ -13,3 +13,4 @@ compile_commands.json
 *.dll
 *.exe
 *.log
+imgui.ini

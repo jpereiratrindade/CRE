@@ -43,7 +43,31 @@ int main() {
     require(fs::exists(artifacts.experimentPath), "experiment artifact should be written");
     require(fs::exists(artifacts.evidencePath), "evidence artifact should be written");
 
+    const fs::path projectRoot = cre::findProjectRoot(fs::current_path());
+    require(fs::exists(projectRoot / "README.md"), "project root should resolve from nested path");
+
+    const fs::path tempWorkspace = fs::temp_directory_path() / "cre-workspace-smoke";
+    fs::remove_all(tempWorkspace, ec);
+    const cre::WorkspaceLayout layout =
+        cre::resolveWorkspaceLayout(projectRoot, tempWorkspace, "lv-round-777");
+    cre::ensureWorkspaceInitialized(layout);
+
+    require(fs::exists(layout.workspaceRoot / "cre.yaml"), "workspace manifest should be created");
+    require(fs::exists(layout.workspaceRoot / "rounds"), "workspace rounds directory should exist");
+    require(layout.activeRoundRoot.filename() == "lv-round-777", "workspace should honor custom round id");
+
+    const cre::RoundArtifacts workspaceArtifacts = cre::recordVirtualLabRoundInWorkspace(layout);
+    require(fs::exists(workspaceArtifacts.casePath), "workspace case artifact should be written");
+    require(fs::exists(workspaceArtifacts.hypothesisPath), "workspace hypothesis artifact should be written");
+    require(fs::exists(workspaceArtifacts.experimentPath), "workspace experiment artifact should be written");
+    require(fs::exists(workspaceArtifacts.evidencePath), "workspace evidence artifact should be written");
+
+    const auto candidateDirs = cre::candidateRoundDirectories(layout);
+    require(!candidateDirs.empty(), "workspace should expose candidate round directories");
+    require(candidateDirs.front() == layout.activeRoundRoot, "workspace active round should be first candidate");
+
     fs::remove_all(tempDir, ec);
+    fs::remove_all(tempWorkspace, ec);
 
     std::cout << "OK\n";
     return 0;
