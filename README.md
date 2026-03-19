@@ -40,6 +40,10 @@ O primeiro ambiente operacional do projeto é o `Laboratório Virtual`, onde cas
   - `Ctrl+3` `CRE Core`
   - `Ctrl+4` `ADR Fundador`
   - `Ctrl+5` `Ética`
+- Barra superior da GUI:
+  - `File > Escolher workspace...`
+  - `File > Recarregar workspace`
+  - `File > Sair`
 - Registrar uma rodada inicial em artefatos Markdown:
   - `./build/cre record-round`
   - `./build/cre record-round --round-id lv-round-002`

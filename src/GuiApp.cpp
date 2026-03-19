@@ -9,7 +9,10 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 
+#include <algorithm>
+#include <array>
 #include <cstdio>
+#include <cstring>
 #include <exception>
 #include <filesystem>
 #include <fstream>
@@ -77,6 +80,13 @@ std::string readTextFile(const fs::path& path) {
     std::ostringstream buffer;
     buffer << in.rdbuf();
     return buffer.str();
+}
+
+void copyStringToBuffer(const std::string& value, char* buffer, std::size_t size) {
+    if (size == 0) return;
+    const std::size_t copySize = std::min(value.size(), size - 1);
+    std::memcpy(buffer, value.data(), copySize);
+    buffer[copySize] = '\0';
 }
 
 std::optional<fs::path> findProjectRootForDocs(const fs::path& startDir) {
@@ -437,13 +447,28 @@ int runGuiApp() {
 
     const Experiment experiment = createVirtualLabCycleDemo();
     const VirtualLabReport report = runVirtualLabCycleDemo();
-    const WorkspaceLayout workspace = resolveWorkspaceLayout(fs::current_path());
+    std::optional<fs::path> explicitWorkspaceRoot;
+    WorkspaceLayout workspace = resolveWorkspaceLayout(fs::current_path());
     ensureWorkspaceInitialized(workspace);
-    const fs::path projectRoot = findProjectRootForDocs(workspace.projectRoot).value_or(workspace.projectRoot);
+    fs::path projectRoot = findProjectRootForDocs(workspace.projectRoot).value_or(workspace.projectRoot);
     std::vector<ProjectDocument> documents = loadProjectDocuments(projectRoot);
     std::optional<ArtifactRoundData> artifactData = loadArtifactRoundData(candidateRoundDirectories(workspace));
     int selectedDocument = 0;
     bool focusDocumentsTab = false;
+    bool openWorkspacePicker = false;
+    std::array<char, 1024> workspaceInput{};
+    std::string statusMessage = "Workspace pronto.";
+    copyStringToBuffer(workspace.workspaceRoot.string(), workspaceInput.data(), workspaceInput.size());
+
+    const auto reloadWorkspace = [&]() {
+        workspace = resolveWorkspaceLayout(fs::current_path(), explicitWorkspaceRoot);
+        ensureWorkspaceInitialized(workspace);
+        projectRoot = findProjectRootForDocs(workspace.projectRoot).value_or(workspace.projectRoot);
+        documents = loadProjectDocuments(projectRoot);
+        artifactData = loadArtifactRoundData(candidateRoundDirectories(workspace));
+        copyStringToBuffer(workspace.workspaceRoot.string(), workspaceInput.data(), workspaceInput.size());
+        statusMessage = "Workspace ativo: " + workspace.workspaceRoot.string();
+    };
 
     bool running = true;
     while (running) {
@@ -476,8 +501,67 @@ int runGuiApp() {
         ImGui::SetNextWindowSize(io.DisplaySize, ImGuiCond_Always);
 
         ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
-                                 ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus;
+                                 ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                 ImGuiWindowFlags_MenuBar;
         ImGui::Begin("CRE Shell", nullptr, flags);
+
+        if (ImGui::BeginMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Escolher workspace...")) {
+                    copyStringToBuffer(workspace.workspaceRoot.string(), workspaceInput.data(), workspaceInput.size());
+                    openWorkspacePicker = true;
+                }
+                if (ImGui::MenuItem("Recarregar workspace")) {
+                    reloadWorkspace();
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Sair")) {
+                    running = false;
+                }
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Ajuda")) {
+                if (ImGui::MenuItem("Documentos", "F1")) {
+                    focusDocumentsTab = true;
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+
+        if (openWorkspacePicker) {
+            ImGui::OpenPopup("Escolher Workspace");
+            openWorkspacePicker = false;
+        }
+
+        if (ImGui::BeginPopupModal("Escolher Workspace", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::TextWrapped("Defina o diretorio de trabalho do Laboratorio Virtual. A GUI vai inicializar o workspace e recarregar artefatos/documentos.");
+            ImGui::InputText("Diretorio", workspaceInput.data(), workspaceInput.size());
+            ImGui::TextDisabled("Atual: %s", workspace.workspaceRoot.string().c_str());
+            ImGui::Spacing();
+
+            if (ImGui::Button("Aplicar")) {
+                const std::string selectedPath = trimCopy(workspaceInput.data());
+                if (selectedPath.empty()) {
+                    statusMessage = "Informe um diretorio valido para o workspace.";
+                } else {
+                    explicitWorkspaceRoot = fs::path(selectedPath);
+                    reloadWorkspace();
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Usar Padrao")) {
+                explicitWorkspaceRoot.reset();
+                reloadWorkspace();
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancelar")) {
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
 
         if (artifactData.has_value()) {
             renderTopBar(*artifactData);
@@ -489,11 +573,18 @@ int runGuiApp() {
             focusDocumentsTab = true;
         }
         ImGui::SameLine();
+        if (ImGui::Button("Workspace...")) {
+            copyStringToBuffer(workspace.workspaceRoot.string(), workspaceInput.data(), workspaceInput.size());
+            openWorkspacePicker = true;
+        }
+        ImGui::SameLine();
         if (ImGui::Button("Recarregar Docs")) {
             documents = loadProjectDocuments(projectRoot);
         }
         ImGui::SameLine();
         ImGui::TextDisabled("Workspace: %s", workspace.workspaceRoot.string().c_str());
+        ImGui::SameLine();
+        ImGui::TextDisabled("| %s", statusMessage.c_str());
         ImGui::Separator();
 
         if (ImGui::BeginTabBar("LVTabs")) {
