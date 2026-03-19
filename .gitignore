@@ -14,3 +14,4 @@ compile_commands.json
 *.exe
 *.log
 imgui.ini
+workspace/
