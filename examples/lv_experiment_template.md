@@ -11,6 +11,7 @@
 
 ## Plano de execucao
 - Objetivo operacional:
+- Exposicao desenhada:
 - Sequencia de passos:
   1. Passo 1
   2. Passo 2
@@ -32,4 +33,5 @@
 ## Resultado sintetico
 - O que mudou:
 - O que nao mudou:
+- Mudanca de percepcao observada:
 - Decisao: `promover|iterar|descartar`

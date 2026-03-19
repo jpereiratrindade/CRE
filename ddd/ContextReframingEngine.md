@@ -18,6 +18,16 @@ Modelar a estrategia de superacao de rejeicao automatica por meio de redireciona
 5. Criar oportunidade de teste
 6. Reforcar a nova percepcao
 
+## Pipeline dominante
+O `CRE` deixa de ser apenas tese conceitual quando o pipeline passa a operar como ciclo formal do sistema.
+Esse ciclo esta descrito em `ddd/CRECycle.md` e organiza o laboratorio em:
+- `Rejeicao`
+- `Gatilho`
+- `Reframing`
+- `Exposicao`
+- `Evidencia`
+- `Decisao`
+
 ## Invariantes
 - O contexto deve ser explicito
 - A entrega real nao pode ser substituida por maquilagem

@@ -5,6 +5,7 @@ Ambiente operacional do `CRE` para modelar, testar, observar e evidenciar estrat
 
 ## Base de Referência
 O `LV` é a referência prática do projeto. Toda evolução posterior de CLI, domínio, persistência ou UI deve respeitar esta base.
+O `LV` não executa rodadas genéricas: ele executa o `CRE Cycle`, formalizado em `ddd/CRECycle.md`.
 
 ## Entidades-base
 - `Caso`
@@ -48,6 +49,14 @@ O `LV` é a referência prática do projeto. Toda evolução posterior de CLI, d
 6. decidir
 7. versionar aprendizado
 
+## Fluxo CRE-aware
+1. registrar `Rejeição`
+2. identificar `Gatilho`
+3. formular `Reframing`
+4. planejar `Exposição`
+5. coletar `Evidência`
+6. fechar `Decisão`
+
 ## Estados mínimos
 - `draft`
 - `ready`
@@ -79,3 +88,10 @@ O `LV` é a referência prática do projeto. Toda evolução posterior de CLI, d
 O `LV` deve sempre responder:
 
 > Que contexto estamos mudando, qual gatilho queremos evitar, que evidência mostra que isso funcionou, e com que limite ético?
+
+## Acoplamento com o CRE
+- `Caso` deve explicitar `Rejeição` e `Gatilho`
+- `Hipótese` deve declarar `Reframing`
+- `Experimento` deve descrever a `Exposição`
+- `Evidência` deve medir mudança de percepção
+- `Decisão` deve informar `promover`, `iterar` ou `descartar` com base no deslocamento observado

@@ -21,6 +21,11 @@
 - Gatilho principal:
 - Gatilhos secundarios:
 
+## Mapeamento CRE
+- Heuristica latente:
+- Sinal de ativacao:
+- Frase automatica esperada:
+
 ## Objetivo do caso
 - Resultado esperado no laboratorio:
 

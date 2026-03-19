@@ -25,6 +25,7 @@
 
 ## Relacao com a hipotese
 - Como apoia/refuta a hipotese:
+- O que indica sobre a mudanca de percepcao:
 - Gap de evidencia restante:
 
 ## Decisao de uso

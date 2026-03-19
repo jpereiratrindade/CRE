@@ -9,6 +9,7 @@ O primeiro ambiente operacional do projeto é o `Laboratório Virtual`, onde cas
 ## Fundação Conceitual
 - O ADR fundador está em `adr/ADR-AGENT-005-cre-foundation-virtual-lab.md`
 - O núcleo do motor está descrito em `ddd/ContextReframingEngine.md`
+- O ciclo operacional dominante está em `ddd/CRECycle.md`
 - O primeiro ambiente operacional está descrito em `ddd/LaboratorioVirtual.md`
 - Os limites éticos iniciais estão em `policies/ethics_limits.md`
 
@@ -119,6 +120,7 @@ para um ciclo explicitamente orientado a reframing:
 A base oficial do `Laboratório Virtual` está em `ddd/LaboratorioVirtual.md` e define:
 - entidades-base: `Caso`, `Hipótese`, `Experimento`, `Evidência`, `Decisão`
 - fluxo canônico: caso -> hipótese -> experimento -> evidência -> decisão
+- fluxo `CRE-aware`: rejeição -> gatilho -> reframing -> exposição -> evidência -> decisão
 - invariantes operacionais e éticos
 - estados mínimos dos artefatos
 - UI mínima de referência para futuras interfaces
@@ -144,3 +146,4 @@ O texto integral está em [LICENSE](/run/media/jpereiratrindade/labeco10T/dev/cp
 ## Próximo Passo Natural
 - transformar o Laboratório Virtual em um módulo mais operacional com casos, hipóteses, experimentos e evidências versionadas
 - formalizar um `CRE Cycle` como pipeline dominante do sistema
+- levar o `CRE Cycle` para o código e para a navegação da GUI

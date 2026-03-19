@@ -11,6 +11,11 @@
 ## Hipotese testavel
 - Declaracao (formato: Se... entao... porque...):
 
+## Reframing
+- Reframing proposto:
+- O que muda na entrada:
+- O que deve deixar de ativar o filtro:
+
 ## Variaveis
 - Variavel independente (o que muda):
 - Variavel dependente (o que sera observado):
