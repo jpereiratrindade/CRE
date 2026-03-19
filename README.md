@@ -63,6 +63,14 @@ Esse comando gera arquivos versionáveis de:
 - `CRE`: motor conceitual e operacional
 - `Laboratório Virtual`: ambiente de simulação, teste e validação de reframing contextual
 
+## Referência do LV
+A base oficial do `Laboratório Virtual` está em `ddd/LaboratorioVirtual.md` e define:
+- entidades-base: `Caso`, `Hipótese`, `Experimento`, `Evidência`, `Decisão`
+- fluxo canônico: caso -> hipótese -> experimento -> evidência -> decisão
+- invariantes operacionais e éticos
+- estados mínimos dos artefatos
+- UI mínima de referência para futuras interfaces
+
 ## Pipeline Inicial
 1. Mapear a rejeição automática
 2. Identificar o gatilho de ativação

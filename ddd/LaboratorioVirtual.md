@@ -1,50 +1,81 @@
-# Laboratorio Virtual
+# Laboratório Virtual
 
 ## Responsabilidade
-Ambiente de experimentacao do CRE para simular cenarios, aplicar reframing e observar resultados.
+Ambiente operacional do `CRE` para modelar, testar, observar e evidenciar estratégias de reframing contextual.
 
-## Escopo
-- Registrar casos de uso
-- Modelar cenarios com rejeicao automatica
-- Testar sequencias de contexto
-- Coletar evidencias antes e depois
-- Comparar hipoteses de entrada
+## Base de Referência
+O `LV` é a referência prática do projeto. Toda evolução posterior de CLI, domínio, persistência ou UI deve respeitar esta base.
 
-## Entidades de apoio
-- `Cenario`: caso descrito com contexto, objetivo e risco
-- `Hipotese`: explicacao testavel sobre o efeito do reframing
-- `Experimento`: execucao documentada de uma estrategia
-- `Evidencia`: observacao coletada durante ou apos o experimento
-- `LimiteEtico`: regra que impede manipulacao sem substancia
+## Entidades-base
+- `Caso`
+  - descreve o problema real
+  - registra rejeição automática
+  - registra gatilho
+  - define contexto atual
+  - define objetivo da rodada
+- `Hipótese`
+  - declara o reframing a ser testado
+  - explicita o que deve mudar
+  - define critério de sucesso
+  - liga a hipótese ao caso
+- `Experimento`
+  - transforma a hipótese em execução
+  - define passos
+  - define guardrails
+  - define critérios de interrupção
+  - registra status da rodada
+- `Evidência`
+  - captura observações
+  - informa fonte
+  - informa confiança
+  - diz se apoia ou enfraquece a hipótese
+- `Decisão`
+  - fecha a rodada com `promover`, `iterar` ou `descartar`
 
-## Convencao de IDs e versao
+## Convenção de IDs e versão
 - Caso: `LV-CASE-<numero>`
-- Hipotese: `LV-HYP-<numero>`
+- Hipótese: `LV-HYP-<numero>`
 - Experimento: `LV-EXP-<numero>`
-- Evidencia: `LV-EVD-<numero>`
-- Versao semantica: `vMAJOR.MINOR.PATCH`
+- Evidência: `LV-EVD-<numero>`
+- Versão semântica: `vMAJOR.MINOR.PATCH`
 
-## Ciclo de vida dos artefatos
-- `draft`: artefato incompleto, nao entra em decisao
-- `ready`: artefato apto para uso na rodada
-- `archived`: artefato mantido apenas para historico
+## Fluxo Canônico
+1. criar caso
+2. criar hipótese
+3. planejar experimento
+4. executar rodada
+5. registrar evidências
+6. decidir
+7. versionar aprendizado
 
-## Fluxo operacional simples
-1. Criar `Caso` com contexto minimo, rejeicao observada e risco.
-2. Declarar `Hipotese` testavel ligada ao caso.
-3. Planejar `Experimento` com passos, guardrails e criterio de interrupcao.
-4. Executar experimento e registrar dados brutos.
-5. Gerar `Evidencias` com classificacao de confianca.
-6. Consolidar decisao da rodada: `promover|iterar|descartar`.
-7. Versionar artefatos alterados e registrar rastreabilidade entre IDs.
+## Estados mínimos
+- `draft`
+- `ready`
+- `running`
+- `review`
+- `archived`
+
+## Invariantes
+- sem `Caso`, não existe `Hipótese`
+- sem `Hipótese`, não existe `Experimento`
+- sem `Evidência`, não existe `Decisão`
+- sem limite ético explícito, a rodada não deve avançar
+- sem entrega real, o reframing não pode ser promovido
+
+## UI mínima de referência
+- lista de casos
+- detalhe do caso
+- hipótese ativa
+- experimento da rodada
+- painel de evidências
+- decisão final
 
 ## Fronteiras
-- O laboratorio nao define a tese do CRE
-- O laboratorio executa e observa
-- Decisoes conceituais continuam no nucleo do CRE
+- o laboratório não define a tese do `CRE`
+- o laboratório executa e observa
+- decisões conceituais continuam no núcleo do `CRE`
 
-## Regras
-- Nenhum experimento sem hipotese declarada
-- Nenhum caso sem contexto minimo
-- Nenhuma conclusao sem evidencia registrada
-- Nenhuma estrategia sem considerar limite etico
+## Regra central
+O `LV` deve sempre responder:
+
+> Que contexto estamos mudando, qual gatilho queremos evitar, que evidência mostra que isso funcionou, e com que limite ético?
