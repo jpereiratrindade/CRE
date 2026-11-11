@@ -162,3 +162,9 @@ O texto integral está em [LICENSE](LICENSE).
 - transformar o Laboratório Virtual em um módulo mais operacional com casos, hipóteses, experimentos e evidências versionadas
 - ampliar o `PerceptionShiftReport` e os artefatos para múltiplos casos reais
 - consolidar a GUI como navegador operacional de rodadas do `workspace`
+
+## Premissas de desenvolvimento
+
+**Simples, leve. Sempre pronto. Sempre incompleto!**
+
+[Significado e símbolos das premissas](docs/sister-principles/README.md).
